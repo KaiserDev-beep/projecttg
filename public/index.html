@@ -4,203 +4,130 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>CoinFlip</title>
+
+  <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
   <style>
     :root{
-      --bg: var(--tg-theme-bg-color, #0b0f14);
-      --card: var(--tg-theme-secondary-bg-color, #121824);
-      --text: var(--tg-theme-text-color, #e8eef7);
-      --hint: var(--tg-theme-hint-color, #8aa0b6);
+      --bg: var(--tg-theme-bg-color, #0f141a);
+      --card: var(--tg-theme-secondary-bg-color, #1c232b);
+      --text: var(--tg-theme-text-color, #ffffff);
+      --hint: var(--tg-theme-hint-color, #9aa7b5);
       --btn: var(--tg-theme-button-color, #2ea6ff);
       --btnText: var(--tg-theme-button-text-color, #ffffff);
-      --accent: #7c5cff;
-      --radius: 18px;
+      --radius: 16px;
     }
+
     *{box-sizing:border-box}
+
     body{
       margin:0;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      background: radial-gradient(1200px 600px at 20% -10%, rgba(124,92,255,.35), transparent 55%),
-                  radial-gradient(900px 500px at 110% 0%, rgba(46,166,255,.25), transparent 60%),
-                  var(--bg);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      background: var(--bg);
       color: var(--text);
-      padding: 18px;
+      padding: 16px;
     }
-    .wrap{max-width:520px;margin:0 auto; padding-bottom: 10px;}
-    .top{
-      display:flex; align-items:center; justify-content:space-between;
-      margin: 10px 0 14px;
+
+    .container{
+      max-width: 520px;
+      margin: 0 auto;
     }
-    .brand{display:flex; gap:10px; align-items:center;}
-    .logo{
-      width:42px;height:42px;border-radius:14px;
-      background: linear-gradient(135deg, rgba(124,92,255,1), rgba(46,166,255,1));
-      box-shadow: 0 12px 30px rgba(0,0,0,.25);
-      display:grid; place-items:center;
-      font-size:20px;
-    }
-    .title{line-height:1.1}
-    .title b{display:block; font-size:16px}
-    .title span{color:var(--hint); font-size:12px}
+
     .card{
-      background: color-mix(in oklab, var(--card) 92%, #000 8%);
-      border: 1px solid rgba(255,255,255,.06);
+      background: var(--card);
       border-radius: var(--radius);
       padding: 16px;
-      box-shadow: 0 18px 50px rgba(0,0,0,.25);
-      margin: 12px 0;
+      margin-bottom: 16px;
     }
-    .row{display:flex; gap:10px; flex-wrap:wrap;}
-    .pill{
-      flex: 1;
-      min-width: 140px;
-      padding: 12px 12px;
-      border-radius: 14px;
-      border: 1px solid rgba(255,255,255,.08);
-      background: rgba(255,255,255,.03);
-      color: var(--text);
-      display:flex; align-items:center; justify-content:space-between;
+
+    h1{
+      margin: 0 0 6px 0;
+      font-size: 20px;
     }
-    .pill small{color:var(--hint)}
-    .seg{
-      display:flex; gap:10px;
+
+    .muted{
+      color: var(--hint);
+      font-size: 13px;
     }
-    .seg button{
-      flex:1;
-      padding: 12px 12px;
-      border-radius: 14px;
-      border: 1px solid rgba(255,255,255,.08);
-      background: rgba(255,255,255,.03);
-      color: var(--text);
-      font-size: 16px;
-      cursor:pointer;
-      transition: transform .06s ease;
-    }
-    .seg button:active{transform: scale(.99)}
-    .seg button.active{
-      border-color: rgba(124,92,255,.6);
-      background: rgba(124,92,255,.18);
-    }
-    .grid{
-      display:grid;
-      grid-template-columns: repeat(4, 1fr);
+
+    .row{
+      display:flex;
       gap:10px;
-      margin-top: 10px;
+      margin-top:12px;
     }
-    .chip{
-      padding: 10px 0;
+
+    button{
+      flex:1;
+      padding:12px;
       border-radius: 14px;
-      border: 1px solid rgba(255,255,255,.08);
-      background: rgba(255,255,255,.03);
-      color: var(--text);
+      border:none;
+      font-size:16px;
       cursor:pointer;
     }
-    .chip.active{
-      border-color: rgba(46,166,255,.6);
-      background: rgba(46,166,255,.16);
-    }
-    .input{
-      width:100%;
-      margin-top: 10px;
-      padding: 12px 12px;
-      border-radius: 14px;
-      border: 1px solid rgba(255,255,255,.08);
-      background: rgba(0,0,0,.12);
-      color: var(--text);
-      font-size: 16px;
-      outline:none;
-    }
-    .cta{
-      margin-top: 12px;
-      width:100%;
-      padding: 14px 14px;
-      border-radius: 16px;
-      border: none;
+
+    .primary{
       background: var(--btn);
       color: var(--btnText);
-      font-size: 16px;
-      font-weight: 700;
-      cursor:pointer;
+      font-weight:600;
     }
-    .ghost{
-      margin-top: 10px;
-      width:100%;
-      padding: 12px 14px;
-      border-radius: 16px;
-      border: 1px solid rgba(255,255,255,.10);
-      background: rgba(255,255,255,.03);
+
+    .secondary{
+      background: rgba(255,255,255,.05);
       color: var(--text);
-      font-size: 14px;
-      cursor:pointer;
     }
-    .hint{color:var(--hint); font-size:12px; margin-top: 8px; line-height: 1.35;}
-    .foot{color:var(--hint); font-size:12px; text-align:center; margin-top: 10px;}
+
+    input{
+      width:100%;
+      margin-top:10px;
+      padding:12px;
+      border-radius:14px;
+      border:none;
+      font-size:16px;
+      background: rgba(255,255,255,.05);
+      color: var(--text);
+    }
+
+    .feed-item{
+      padding:10px;
+      border-radius:12px;
+      background: rgba(255,255,255,.05);
+      font-size:14px;
+      margin-bottom:6px;
+    }
+
+    .feed-item.win{color:#3ddc97;}
+    .feed-item.lose{color:#ff5c5c;}
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="top">
-      <div class="brand">
-        <div class="logo">🪙</div>
-        <div class="title">
-          <b>CoinFlip</b>
-          <span>Орел / Решка • ставка • коэф 1.95</span>
-        </div>
-      </div>
+
+<div class="container">
+
+  <div class="card">
+    <h1>🪙 CoinFlip</h1>
+    <div class="muted">Орел или решка • коэффициент 1.95</div>
+
+    <div class="row">
+      <button id="btnOrel" class="secondary">🦅 Орёл</button>
+      <button id="btnReshka" class="secondary">🪙 Решка</button>
     </div>
 
-    <div class="card">
-      <div class="row">
-        <div class="pill">
-          <div>
-            <div><b>Ставка</b></div>
-            <small>Выбери пресет или введи</small>
-          </div>
-          <div id="amountView" style="font-weight:800;">50</div>
-        </div>
+    <input id="amount" type="number" min="1" value="50" placeholder="Сумма ставки">
 
-        <div class="pill">
-          <div>
-            <div><b>Выбор</b></div>
-            <small>орел или решка</small>
-          </div>
-          <div id="sideView" style="font-weight:800;">орел</div>
-        </div>
-      </div>
-
-      <div style="margin-top:12px">
-        <div class="seg">
-          <button id="btnOrel" class="active">🦅 Орёл</button>
-          <button id="btnReshka">🪙 Решка</button>
-        </div>
-        <div class="card">
-  <b>📜 Лента ставок</b>
-  <div id="feed" style="margin-top:10px; display:flex; flex-direction:column; gap:8px;"></div>
-  <button id="refreshFeed" class="ghost">Обновить ленту</button>
-</div>
-
-        <div class="grid">
-          <button class="chip" data-amt="10">10</button>
-          <button class="chip" data-amt="50">50</button>
-          <button class="chip" data-amt="100">100</button>
-          <button class="chip" data-amt="250">250</button>
-        </div>
-
-        <input id="amount" class="input" type="number" min="1" value="50" inputmode="numeric" />
-
-        <button id="play" class="cta">Сделать ставку</button>
-        <button id="balance" class="ghost">Показать баланс</button>
-
-        <div class="hint">
-          Нажатие отправляет боту команду в фоне (без ручного ввода).
-          Если меню в чате пропало — нажми /start.
-        </div>
-      </div>
+    <div class="row">
+      <button id="play" class="primary">Сделать ставку</button>
+      <button id="balance" class="secondary">Баланс</button>
     </div>
-
-    <div class="foot">Powered by Netlify Functions • Telegram WebApp</div>
   </div>
 
-  <script src="./app.js"></script>
+  <div class="card">
+    <b>📜 Лента ставок</b>
+    <div id="feed"></div>
+  </div>
+
+</div>
+
+<script src="./app.js"></script>
 </body>
 </html>
