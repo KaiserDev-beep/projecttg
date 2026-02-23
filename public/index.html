@@ -409,5 +409,17 @@
   </div>
 
   <script src="/app.js?v=7"></script>
+  <button id="tapTest"
+  style="position:fixed;bottom:14px;left:14px;z-index:999999;
+  padding:10px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.2);
+  background:rgba(0,0,0,.5);color:#fff">
+  TAP TEST
+</button>
+
+<script>
+  document.getElementById("tapTest").addEventListener("click", () => {
+    alert("CLICK OK");
+  });
+</script>
 </body>
 </html>
