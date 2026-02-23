@@ -53,6 +53,7 @@
     for (var k in payload) body[k] = payload[k];
 
     // Заменить в public/app.js
+    const API_BASE = "https://coinflip-bot.stexiner94.workers.dev";
 fetch("https://coinflip-bot.stexiner94.workers.dev/api", {
       method: "POST",
       headers: { "content-type": "application/json" },
