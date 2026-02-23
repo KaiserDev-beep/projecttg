@@ -5,6 +5,9 @@
   const $ = (id) => document.getElementById(id);
   const state = { side: "орел", amount: 50, busy: false };
 
+  const TOSS_MS = 1450;          // длительность toss анимации (совпадает с CSS)
+  const REVEAL_AT_MS = 1200;     // когда раскрывать результат (чуть до приземления)
+
   function debug(t) {
     const d = $("debug");
     if (d) d.textContent = t;
@@ -66,7 +69,7 @@
     return data;
   }
 
-  // ===== ULTRA EFFECTS =====
+  // ===== ЭФФЕКТЫ =====
   function floorPulse() {
     const f = $("floor");
     if (!f) return;
@@ -80,10 +83,8 @@
     if (!g) return;
     g.classList.remove("win", "lose", "on");
     g.classList.add(type);
-    // next frame
     requestAnimationFrame(() => g.classList.add("on"));
   }
-
   function glowOff() {
     const g = $("glowRing");
     if (!g) return;
@@ -93,53 +94,70 @@
   function particlesBurst(type) {
     const box = $("particles");
     if (!box) return;
-
-    box.classList.remove("play");
     box.innerHTML = "";
 
-    // создаём 18 частиц
-    const count = 18;
+    const count = 22;
     for (let i = 0; i < count; i++) {
       const p = document.createElement("div");
       p.className = "p" + (type === "lose" ? " lose" : "");
-      const angle = (Math.PI * 2) * (i / count);
-      const dist = 60 + Math.random() * 70;
+
+      const angle = (Math.PI * 2) * (i / count) + (Math.random() * 0.35);
+      const dist = 70 + Math.random() * 90;
       const dx = Math.cos(angle) * dist;
-      const dy = -Math.abs(Math.sin(angle) * dist) - (20 + Math.random() * 40);
+      const dy = -Math.abs(Math.sin(angle) * dist) - (30 + Math.random() * 55);
 
       p.style.setProperty("--dx", `${dx.toFixed(1)}px`);
       p.style.setProperty("--dy", `${dy.toFixed(1)}px`);
-      p.style.animationDelay = `${Math.random() * 80}ms`;
-
+      p.style.animationDelay = `${Math.random() * 60}ms`;
       box.appendChild(p);
     }
 
-    // старт
-    requestAnimationFrame(() => box.classList.add("play"));
+    setTimeout(() => { box.innerHTML = ""; }, 800);
+  }
 
-    // чистим
-    setTimeout(() => {
-      box.classList.remove("play");
-      box.innerHTML = "";
-    }, 750);
+  function setCoinFaces(front, back) {
+    const cf = $("coinFront");
+    const cb = $("coinBack");
+    if (cf) cf.textContent = front;
+    if (cb) cb.textContent = back;
   }
 
   function coinTossStart() {
     const el = $("coin3d");
     if (!el) return;
+
+    // пока летит — скрываем результат
+    setCoinFaces("❔", "❔");
+    glowOff();
+
     el.classList.remove("toss");
     void el.offsetWidth;
     el.classList.add("toss");
   }
 
-  function coinSetResult(result) {
+  function coinRevealResult(result) {
+    // раскрываем именно в момент "приземления"
+    // фронт = орел, бэк = решка
+    setCoinFaces("🦅", "🪙");
+
     const el = $("coin3d");
     if (!el) return;
-    // после завершения toss фиксируем сторону
-    setTimeout(() => {
-      el.style.transform = result === "орел" ? "rotateY(0deg)" : "rotateY(180deg)";
-      floorPulse();
-    }, 1350);
+
+    // показываем нужную сторону (0deg = front, 180deg = back)
+    // ВАЖНО: не трогаем transform пока идет animation,
+    // поэтому делаем это после завершения (ниже в coinLand)
+    el.dataset.final = (result === "орел") ? "0" : "180";
+  }
+
+  function coinLandApplyFinal() {
+    const el = $("coin3d");
+    if (!el) return;
+
+    const deg = el.dataset.final || "0";
+    // убрать класс анимации и выставить финальную позицию
+    el.classList.remove("toss");
+    el.style.transform = `rotateY(${deg}deg)`;
+    floorPulse();
   }
 
   function animateNumber(el, to, ms = 420) {
@@ -182,19 +200,16 @@
     resultText.textContent = `Выпало: ${String(data.result || "").toUpperCase()}`;
     balanceText.textContent = `Баланс: ${you.balance ?? "—"}`;
 
-    // банки
     const winnersPool = Number(data.round?.winnersPool || 0);
     const losersPool = Number(data.round?.losersPool || 0);
     animateNumber(winnersPoolEl, winnersPool);
     animateNumber(losersPoolEl, losersPool);
 
-    // дельта
     const delta = (you.payout || 0) - (you.amount || 0);
     deltaText.textContent = youWin ? `+${delta}` : `-${you.amount || 0}`;
     deltaText.style.color = youWin ? "var(--good)" : "var(--bad)";
     payoutText.textContent = `Выплата: ${youWin ? (you.payout || 0) : 0}`;
 
-    // участники
     list.innerHTML = "";
     const parts = data?.round?.participants || [];
     parts.forEach((p) => {
@@ -273,46 +288,61 @@
     debug("PLAY CLICK");
 
     try {
-      glowOff(); // сброс
-      coinTossStart(); // старт подбрасывания
+      coinTossStart();
 
+      // параллельно: пока крутится — делаем запрос
       const data = await callApi("bet", { side: state.side, amount: state.amount });
 
-      // фикс стороны + “удар”
-      coinSetResult(data.result);
+      // 1) раскрываем результат НЕ сразу, а ближе к приземлению
+      setTimeout(() => coinRevealResult(data.result), REVEAL_AT_MS);
 
-      // эффекты по win/lose
-      const type = data.you?.win ? "win" : "lose";
-      glowOn(type);
-      particlesBurst(type);
+      // 2) эффекты делаем В МОМЕНТ ПРИЗЕМЛЕНИЯ
+      setTimeout(() => {
+        const type = data.you?.win ? "win" : "lose";
+        glowOn(type);
+        particlesBurst(type);
+        coinLandApplyFinal();
+        tg?.HapticFeedback?.notificationOccurred?.(data.you?.win ? "success" : "error");
+      }, TOSS_MS);
 
-      // отрисовка результата
-      renderRound(data);
+      // 3) UI результата можно показать сразу (или тоже на приземлении)
+      setTimeout(() => {
+        renderRound(data);
+        const prof = (data.you?.payout || 0) - (data.you?.amount || 0);
+        showToast(data.you?.win ? `WIN +${prof}` : `LOSE -${data.you?.amount}`);
+      }, TOSS_MS);
 
-      // текст без окон
-      const prof = (data.you?.payout || 0) - (data.you?.amount || 0);
-      showToast(data.you?.win ? `WIN +${prof}` : `LOSE -${data.you?.amount}`);
+      // обновим ленту после приземления
+      setTimeout(() => refreshFeed(), TOSS_MS + 50);
 
-      tg?.HapticFeedback?.notificationOccurred?.(data.you?.win ? "success" : "error");
-
-      await refreshFeed();
     } catch (e) {
       showToast("Ошибка: " + e.message);
       debug("ERR=" + e.message);
-      tg?.HapticFeedback?.notificationOccurred?.("error");
       glowOn("lose");
       particlesBurst("lose");
+      tg?.HapticFeedback?.notificationOccurred?.("error");
+      // если ошибка — монету в нейтрал
+      setCoinFaces("❔", "❔");
     } finally {
-      state.busy = false;
-      setButtonBusy(false);
+      setTimeout(() => {
+        state.busy = false;
+        setButtonBusy(false);
+      }, TOSS_MS);
     }
+  }
+
+  function onAnyTap(handler) {
+    // Telegram Desktop иногда капризничает с pointer*,
+    // поэтому дублируем click.
+    document.addEventListener("pointerdown", handler, { capture: true });
+    document.addEventListener("click", handler, { capture: true });
   }
 
   function bind() {
     tg?.ready?.();
     tg?.expand?.();
 
-    document.addEventListener("pointerdown", (e) => {
+    onAnyTap((e) => {
       const t = e.target;
 
       if (t.closest("#btnOrel")) return setSide("орел");
@@ -324,12 +354,13 @@
       if (t.closest("#play")) return play();
       if (t.closest("#balance")) return updateBalanceInline();
       if (t.closest("#refreshFeed")) return refreshFeed();
-    }, { capture: true });
+    });
 
     $("amount").addEventListener("input", (e) => setAmount(e.target.value));
 
     setSide("орел");
     setAmount(50);
+    setCoinFaces("❔", "❔");
     refreshFeed();
     debug("APP LOADED ✅");
   }

@@ -32,6 +32,8 @@
       padding:18px;
       touch-action: manipulation;
       overflow-x:hidden;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
     }
     .wrap{max-width:560px;margin:0 auto}
     .top{display:flex;align-items:center;justify-content:space-between;margin:10px 0 14px}
@@ -54,11 +56,11 @@
       margin: 12px 0;
     }
 
-    /* ===== ULTRA ARENA ===== */
+    /* ===== ARENA ===== */
     .arenaCard{ position:relative; overflow:hidden; }
     .arena{
       position:relative;
-      height: 190px;
+      height: 210px;
       display:flex;
       align-items:flex-end;
       justify-content:center;
@@ -75,57 +77,84 @@
       opacity:.9;
       filter: blur(.2px);
       transform: scale(1);
+      z-index: 1;
+      pointer-events:none;
     }
-    .floor.pulse{
-      animation: floorPulse .35s ease-out;
-    }
+    .floor.pulse{ animation: floorPulse .35s ease-out; }
     @keyframes floorPulse{
       0%{ transform: scale(1); opacity:.85 }
-      60%{ transform: scale(1.08); opacity:1 }
+      60%{ transform: scale(1.10); opacity:1 }
       100%{ transform: scale(1); opacity:.9 }
     }
 
-    /* glow */
     .glowRing{
       position:absolute;
-      inset:auto;
-      bottom: 36px;
-      width: 220px;
-      height: 220px;
+      bottom: 34px;
+      width: 240px;
+      height: 240px;
       border-radius: 999px;
-      background: radial-gradient(circle at 50% 50%,
-        rgba(46,166,255,.18),
-        rgba(46,166,255,.06) 45%,
-        transparent 70%);
       opacity: 0;
       transform: scale(.85);
-      transition: opacity .25s ease, transform .25s ease, filter .25s ease;
-      filter: blur(6px);
+      transition: opacity .25s ease, transform .25s ease;
+      filter: blur(10px);
       pointer-events:none;
+      z-index: 2;
     }
-    .glowRing.on{ opacity: 1; transform: scale(1); }
+    .glowRing.on{ opacity: 1; transform: scale(1.02); }
     .glowRing.win{
       background: radial-gradient(circle at 50% 50%,
-        rgba(46,166,255,.22),
-        rgba(46,166,255,.08) 45%,
-        transparent 72%);
+        rgba(46,166,255,.28),
+        rgba(46,166,255,.10) 45%,
+        transparent 74%);
     }
     .glowRing.lose{
       background: radial-gradient(circle at 50% 50%,
-        rgba(236,57,66,.18),
-        rgba(236,57,66,.06) 45%,
-        transparent 72%);
+        rgba(236,57,66,.26),
+        rgba(236,57,66,.10) 45%,
+        transparent 74%);
+    }
+
+    /* particles over everything */
+    .particles{
+      position:absolute;
+      left: 50%;
+      bottom: 66px;
+      width: 1px;
+      height: 1px;
+      pointer-events:none;
+      transform: translateX(-50%);
+      z-index: 5;
+    }
+    .p{
+      position:absolute;
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: rgba(46,166,255,.98);
+      box-shadow: 0 0 22px rgba(46,166,255,.65);
+      transform: translate(0,0) scale(1);
+      animation: pop 720ms ease-out forwards;
+    }
+    .p.lose{
+      background: rgba(236,57,66,.98);
+      box-shadow: 0 0 22px rgba(236,57,66,.65);
+    }
+    @keyframes pop{
+      0%{ transform: translate(0,0) scale(1); opacity:1 }
+      100%{ transform: translate(var(--dx), var(--dy)) scale(.15); opacity:0 }
     }
 
     .coin3d{
-      width: 102px;
-      height: 102px;
+      width: 110px;
+      height: 110px;
       position: relative;
       transform-style: preserve-3d;
       border-radius: 50%;
-      filter: drop-shadow(0 22px 30px rgba(0,0,0,.35));
-      transform: translateY(0) rotateY(0deg) rotateX(0deg) rotateZ(0deg) scale(1);
+      filter: drop-shadow(0 26px 34px rgba(0,0,0,.45));
+      transform: translateY(0) rotateY(0deg);
       will-change: transform, filter;
+      z-index: 4;
+      pointer-events:none;
     }
     .coin-face{
       position:absolute;
@@ -133,55 +162,24 @@
       display:flex;
       align-items:center;
       justify-content:center;
-      font-size: 48px;
+      font-size: 52px;
       border-radius: 50%;
-      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.40), rgba(255,255,255,.06) 50%, rgba(0,0,0,.25));
-      border: 1px solid rgba(255,255,255,.14);
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.42), rgba(255,255,255,.06) 50%, rgba(0,0,0,.26));
+      border: 1px solid rgba(255,255,255,.16);
       backface-visibility:hidden;
     }
     .coin-back{ transform: rotateY(180deg); }
 
-    /* toss */
+    /* toss animation */
     .coin3d.toss{
-      animation: toss 1.35s cubic-bezier(.16,.84,.21,1);
+      animation: toss 1.45s cubic-bezier(.16,.84,.21,1);
     }
     @keyframes toss{
       0%   { transform: translateY(0) rotateX(0) rotateY(0) rotateZ(0) scale(1); }
-      14%  { transform: translateY(-26px) rotateX(240deg) rotateY(360deg) rotateZ(14deg) scale(1.02); }
-      45%  { transform: translateY(-128px) rotateX(1020deg) rotateY(1440deg) rotateZ(26deg) scale(1.05); }
-      72%  { transform: translateY(-40px) rotateX(1380deg) rotateY(1920deg) rotateZ(12deg) scale(1.01); }
-      100% { transform: translateY(0) rotateX(1560deg) rotateY(2160deg) rotateZ(0) scale(1); }
-    }
-
-    /* ===== PARTICLES ===== */
-    .particles{
-      position:absolute;
-      left: 50%;
-      bottom: 58px;
-      width: 1px;
-      height: 1px;
-      pointer-events:none;
-      transform: translateX(-50%);
-      opacity:0;
-    }
-    .particles.play{ opacity:1; }
-    .p{
-      position:absolute;
-      width: 8px;
-      height: 8px;
-      border-radius: 999px;
-      background: rgba(46,166,255,.95);
-      box-shadow: 0 0 16px rgba(46,166,255,.55);
-      transform: translate(0,0) scale(1);
-      animation: pop 650ms ease-out forwards;
-    }
-    .p.lose{
-      background: rgba(236,57,66,.95);
-      box-shadow: 0 0 16px rgba(236,57,66,.55);
-    }
-    @keyframes pop{
-      0%{ transform: translate(0,0) scale(.9); opacity:1 }
-      100%{ transform: translate(var(--dx), var(--dy)) scale(.2); opacity:0 }
+      14%  { transform: translateY(-30px) rotateX(280deg) rotateY(420deg) rotateZ(14deg) scale(1.03); }
+      45%  { transform: translateY(-140px) rotateX(1140deg) rotateY(1680deg) rotateZ(28deg) scale(1.06); }
+      72%  { transform: translateY(-46px) rotateX(1520deg) rotateY(2240deg) rotateZ(12deg) scale(1.02); }
+      100% { transform: translateY(0) rotateX(1680deg) rotateY(2520deg) rotateZ(0) scale(1); }
     }
 
     /* ===== UI ===== */
@@ -200,6 +198,7 @@
       background:rgba(255,255,255,.03);
       color:var(--text);font-size:16px;cursor:pointer;
       transition: transform .08s ease, background .2s ease, border-color .2s ease;
+      pointer-events:auto;
     }
     .seg button:active{transform:scale(.99)}
     .seg button.active{border-color:rgba(124,92,255,.7);background:rgba(124,92,255,.18)}
@@ -210,6 +209,7 @@
       background:rgba(255,255,255,.03);
       color:var(--text);cursor:pointer;
       transition: transform .08s ease, background .2s ease, border-color .2s ease;
+      pointer-events:auto;
     }
     .chip:active{transform:scale(.99)}
     .chip.active{border-color:rgba(46,166,255,.7);background:rgba(46,166,255,.16)}
@@ -217,134 +217,83 @@
       width:100%;margin-top:10px;padding:12px;border-radius:14px;
       border:1px solid rgba(255,255,255,.10);
       background:rgba(0,0,0,.18);
-      color:var(--text);font-size:16px;outline:none
+      color:var(--text);font-size:16px;outline:none;
+      pointer-events:auto;
+      user-select:auto;
     }
     .cta{
       margin-top:12px;width:100%;padding:14px;border-radius:16px;border:none;
       background:var(--btn);color:var(--btnText);font-size:16px;font-weight:950;cursor:pointer;
       transition: transform .08s ease, filter .2s ease;
+      pointer-events:auto;
     }
     .cta:active{transform:scale(.99)}
     .cta[disabled]{opacity:.6; cursor:not-allowed; filter:saturate(.6)}
     .ghost{
       margin-top:10px;width:100%;padding:12px 14px;border-radius:16px;
       border:1px solid rgba(255,255,255,.10);
-      background:rgba(255,255,255,.03);color:var(--text);cursor:pointer
+      background:rgba(255,255,255,.03);color:var(--text);cursor:pointer;
+      pointer-events:auto;
     }
 
-    /* result card */
     .result{
       border: 1px solid rgba(255,255,255,.10);
       background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
     }
-    .result-top{
-      display:flex; align-items:center; justify-content:space-between; gap:10px;
-    }
+    .result-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
     .badge{
-      padding:6px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 950;
-      letter-spacing: .5px;
+      padding:6px 10px;border-radius:999px;font-size:12px;font-weight:950;
       border:1px solid rgba(255,255,255,.12);
       background: rgba(124,92,255,.18);
     }
     .badge.win{ background: rgba(46,166,255,.20); }
     .badge.lose{ background: rgba(236,57,66,.18); }
-
     .coef{ color: var(--hint); font-size: 12px; }
     .coef b{ color: var(--text); }
 
-    .banks{
-      display:flex; gap:10px; flex-wrap:wrap;
-      margin-top: 10px;
-    }
+    .banks{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
     .bank{
-      flex:1;
-      min-width: 180px;
-      padding:10px 12px;
-      border-radius: 14px;
-      border:1px solid rgba(255,255,255,.10);
-      background: rgba(0,0,0,.12);
+      flex:1;min-width:180px;padding:10px 12px;border-radius:14px;
+      border:1px solid rgba(255,255,255,.10);background: rgba(0,0,0,.12);
     }
-    .bank small{ color: var(--hint); font-weight:800; display:block; }
-    .bank b{ font-size:18px; font-weight:950; }
+    .bank small{color:var(--hint);font-weight:800;display:block}
+    .bank b{font-size:18px;font-weight:950}
 
-    .result-mid{ margin-top: 12px; display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
-    .big{ font-size: 22px; font-weight: 950; }
-    .sub{ margin-top: 6px; color: var(--hint); font-size: 13px; }
-
+    .result-mid{margin-top:12px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+    .big{font-size:22px;font-weight:950}
+    .sub{margin-top:6px;color:var(--hint);font-size:13px}
     .money{
-      padding:10px 12px;
-      border-radius: 14px;
-      border:1px solid rgba(255,255,255,.10);
+      padding:10px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.10);
       background: rgba(0,0,0,.12);
-      text-align:right;
-      min-width: 150px;
+      text-align:right;min-width:150px;
     }
-    .money b{ font-size:16px; }
-    .money small{ display:block; color:var(--hint); font-weight:800; margin-top:4px; }
+    .money b{font-size:16px}
+    .money small{display:block;color:var(--hint);font-weight:800;margin-top:4px}
 
-    .result-list{
-      margin-top: 12px;
-      display:flex;
-      flex-direction:column;
-      gap:8px;
-    }
+    .result-list{margin-top:12px;display:flex;flex-direction:column;gap:8px}
     .rowp{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      padding:10px 12px;
-      border-radius: 14px;
-      border:1px solid rgba(255,255,255,.08);
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+      padding:10px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.08);
       background: rgba(255,255,255,.03);
     }
-    .rowp .left{
-      display:flex; align-items:center; gap:10px;
-      min-width: 0;
-    }
+    .left{display:flex;align-items:center;gap:10px;min-width:0}
     .tag{
-      font-size: 12px;
-      padding:4px 8px;
-      border-radius: 999px;
-      border:1px solid rgba(255,255,255,.10);
-      color: var(--hint);
-      flex: 0 0 auto;
+      font-size:12px;padding:4px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.10);
+      color: var(--hint);flex:0 0 auto;
     }
-    .tag.you{ color: var(--text); background: rgba(46,166,255,.12); border-color: rgba(46,166,255,.22); }
-    .tag.npc{ background: rgba(124,92,255,.10); border-color: rgba(124,92,255,.22); }
+    .tag.you{color:var(--text);background:rgba(46,166,255,.12);border-color:rgba(46,166,255,.22)}
+    .tag.npc{background:rgba(124,92,255,.10);border-color:rgba(124,92,255,.22)}
+    .name{font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}
+    .meta{color:var(--hint);font-size:12px}
+    .right{text-align:right;font-weight:950;min-width:78px}
+    .right small{display:block;color:var(--hint);font-size:12px;font-weight:800;margin-top:2px}
 
-    .name{
-      font-weight: 950;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow: ellipsis;
-      max-width: 260px;
-    }
-    .meta{ color: var(--hint); font-size: 12px; }
-    .right{
-      text-align:right;
-      font-weight: 950;
-      min-width: 78px;
-    }
-    .right small{
-      display:block;
-      color: var(--hint);
-      font-size: 12px;
-      font-weight: 800;
-      margin-top: 2px;
-    }
-
-    /* feed */
     #feed{margin-top:10px;display:flex;flex-direction:column;gap:8px}
     .feed-item{
       padding:10px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.08);
       background:rgba(255,255,255,.03);font-size:13px;color:var(--text)
     }
 
-    /* toast */
     .toast{
       position: fixed;
       left: 16px; right: 16px; bottom: 16px;
@@ -352,7 +301,7 @@
       margin: 0 auto;
       padding: 12px 14px;
       border-radius: 16px;
-      background: rgba(0,0,0,.55);
+      background: rgba(0,0,0,.60);
       border: 1px solid rgba(255,255,255,.12);
       color: var(--text);
       backdrop-filter: blur(10px);
@@ -360,8 +309,8 @@
       box-shadow: 0 18px 40px rgba(0,0,0,.35);
       z-index: 9999;
       display:none;
+      pointer-events:none;
     }
-
     #debug{margin-top:10px;color:var(--hint);font-size:12px}
   </style>
 </head>
@@ -372,7 +321,7 @@
         <div class="logo">🪙</div>
         <div class="title">
           <b>CoinFlip Ultra</b>
-          <span>ТЫ + NPC • банк • коэффициент • ультра-эффекты</span>
+          <span>Результат раскрывается при приземлении</span>
         </div>
       </div>
     </div>
@@ -384,8 +333,8 @@
         <div id="floor" class="floor"></div>
 
         <div id="coin3d" class="coin3d">
-          <div class="coin-face coin-front">🦅</div>
-          <div class="coin-face coin-back">🪙</div>
+          <div id="coinFront" class="coin-face coin-front">❔</div>
+          <div id="coinBack" class="coin-face coin-back">❔</div>
         </div>
       </div>
 
@@ -451,7 +400,7 @@
         <button id="play" class="cta">Сделать ставку</button>
         <button id="balance" class="ghost">Показать баланс</button>
 
-        <div class="hint">Результат — на экране. Эффекты зависят от WIN/LOSE.</div>
+        <div class="hint">Если на Desktop не обновилось — открой миниапп заново (закрой/открой чат) или очисти кэш Telegram Desktop.</div>
         <div id="debug"></div>
       </div>
     </div>
@@ -465,6 +414,7 @@
 
   <div id="toast" class="toast"></div>
 
-  <script src="./app.js?v=20260224_ultra1"></script>
+  <!-- поменял v чтобы 100% убить кэш -->
+  <script src="./app.js?v=20260224_ultra_fix2"></script>
 </body>
 </html>
