@@ -324,6 +324,16 @@
       margin-top: 10px;
       opacity:.9;
     }
+    /* HARD FIX: ничего декоративного не должно ловить клики */
+.card::before, .stage::after, .logo::after { pointer-events: none !important; }
+
+/* HARD FIX: все кликабельные элементы обязаны ловить pointer events */
+button, .chip, #btnOrel, #btnReshka, #play, #balance, #refreshFeed {
+  pointer-events: auto !important;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
   </style>
 </head>
 
@@ -404,6 +414,6 @@
     </div>
   </div>
 
-  <script src="/app.js?v=10"></script>
+  <script src="/app.js?v=20"></script>
 </body>
 </html>
