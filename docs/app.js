@@ -3,7 +3,7 @@
   const API = "https://coinflip-bot.stexiner94.workers.dev/api";
 
   const $ = (id) => document.getElementById(id);
-  const state = { side: "орел", amount: 50, busy: false };
+  const state = { side: "орел", amount: 50, busy: false, lastBalance: null };
 
   function debug(t) {
     const d = $("debug");
@@ -20,22 +20,11 @@
     showToast._tm = setTimeout(() => (t.style.display = "none"), 2200);
   }
 
-  function animateCoin(result) {
-    const el = document.getElementById("coin3d");
-    if (!el) return;
-
-    // финал стороны после крутилки
-    setTimeout(() => {
-      el.style.transform = result === "орел" ? "rotateY(0deg)" : "rotateY(180deg)";
-    }, 1150);
-  }
-
-  function spinCoinNow() {
-    const el = document.getElementById("coin3d");
-    if (!el) return;
-    el.classList.remove("flip");
-    void el.offsetWidth;
-    el.classList.add("flip");
+  function setButtonBusy(busy) {
+    const btn = $("play");
+    if (!btn) return;
+    btn.disabled = !!busy;
+    btn.textContent = busy ? "Подбрасываем..." : "Сделать ставку";
   }
 
   function setSide(side) {
@@ -43,8 +32,8 @@
     $("sideView").textContent = side;
     $("btnOrel").classList.toggle("active", side === "орел");
     $("btnReshka").classList.toggle("active", side === "решка");
-    debug("SIDE=" + side);
     tg?.HapticFeedback?.selectionChanged?.();
+    debug("SIDE=" + side);
   }
 
   function setAmount(v) {
@@ -74,9 +63,24 @@
 
     const data = await r.json().catch(() => ({}));
     if (!data.ok) throw new Error(data.error || "API error");
-
-    if (action === "bet" && data.result) animateCoin(data.result);
     return data;
+  }
+
+  function coinTossStart() {
+    const el = $("coin3d");
+    if (!el) return;
+    el.classList.remove("toss");
+    void el.offsetWidth;
+    el.classList.add("toss");
+  }
+
+  function coinSetResult(result) {
+    const el = $("coin3d");
+    if (!el) return;
+    // После завершения toss фиксируем сторону
+    setTimeout(() => {
+      el.style.transform = result === "орел" ? "rotateY(0deg)" : "rotateY(180deg)";
+    }, 1250);
   }
 
   function renderRound(data) {
@@ -85,11 +89,13 @@
     const coefView = $("coefView");
     const resultText = $("resultText");
     const balanceText = $("balanceText");
+    const deltaText = $("deltaText");
+    const payoutText = $("payoutText");
     const list = $("roundList");
-
     if (!card) return;
 
-    const youWin = !!data?.you?.win;
+    const you = data.you || {};
+    const youWin = !!you.win;
 
     badge.classList.remove("win", "lose");
     badge.classList.add(youWin ? "win" : "lose");
@@ -97,11 +103,18 @@
 
     coefView.textContent = Number(data.coef || 0).toFixed(2);
     resultText.textContent = `Выпало: ${String(data.result || "").toUpperCase()}`;
-    balanceText.textContent = `Баланс: ${data.you?.balance ?? "—"}`;
+
+    const newBal = you.balance ?? "—";
+    balanceText.textContent = `Баланс: ${newBal}`;
+
+    // дельта: profit/loss
+    const delta = (you.payout || 0) - (you.amount || 0);
+    deltaText.textContent = youWin ? `+${delta}` : `-${you.amount || 0}`;
+    deltaText.style.color = youWin ? "var(--good)" : "var(--bad)";
+    payoutText.textContent = `Выплата: ${youWin ? (you.payout || 0) : 0}`;
 
     list.innerHTML = "";
     const parts = data?.round?.participants || [];
-
     parts.forEach((p) => {
       const row = document.createElement("div");
       row.className = "rowp";
@@ -133,9 +146,11 @@
       const right = document.createElement("div");
       right.className = "right";
       right.textContent = p.win ? "✅" : "❌";
+      right.innerHTML = `${p.win ? "✅" : "❌"}<small>${p.win ? "WIN" : "LOSE"}</small>`;
 
       row.appendChild(left);
       row.appendChild(right);
+
       list.appendChild(row);
     });
 
@@ -162,23 +177,38 @@
     });
   }
 
+  async function updateBalanceInline() {
+    try {
+      const d = await callApi("balance");
+      state.lastBalance = d.balance;
+      showToast(`Баланс: ${d.balance}`);
+    } catch (e) {
+      showToast("Ошибка: " + e.message);
+    }
+  }
+
   async function play() {
     if (state.busy) return;
     state.busy = true;
+    setButtonBusy(true);
     debug("PLAY CLICK");
 
     try {
-      // крутилка ДО результата
-      spinCoinNow();
+      // 1) старт красивого подбрасывания
+      coinTossStart();
 
+      // 2) делаем ставку
       const data = await callApi("bet", { side: state.side, amount: state.amount });
 
-      // красиво рисуем раунд
+      // 3) зафиксировать сторону по результату
+      coinSetResult(data.result);
+
+      // 4) показать результат прямо на экране
       renderRound(data);
 
-      // toast с профитом/убытком
+      // 5) feedback + toast
       const prof = (data.you?.payout || 0) - (data.you?.amount || 0);
-      showToast(data.you?.win ? `+${prof} 🎉` : `-${data.you?.amount} 😬`);
+      showToast(data.you?.win ? `Ты выиграл +${prof}` : `Ты проиграл -${data.you?.amount}`);
 
       tg?.HapticFeedback?.notificationOccurred?.(data.you?.win ? "success" : "error");
 
@@ -189,6 +219,7 @@
       tg?.HapticFeedback?.notificationOccurred?.("error");
     } finally {
       state.busy = false;
+      setButtonBusy(false);
     }
   }
 
@@ -206,15 +237,7 @@
       if (chip) return setAmount(chip.dataset.amt);
 
       if (t.closest("#play")) return play();
-
-      if (t.closest("#balance")) {
-        debug("BALANCE CLICK");
-        callApi("balance")
-          .then(d => showToast("Баланс: " + d.balance))
-          .catch(err => showToast("Ошибка: " + err.message));
-        return;
-      }
-
+      if (t.closest("#balance")) return updateBalanceInline();
       if (t.closest("#refreshFeed")) return refreshFeed();
     }, { capture: true });
 
