@@ -63,5 +63,3 @@ export default async (req) => {
     { headers: { "content-type": "application/json" } }
   );
 };
-
-export const config = { path: "/.netlify/functions/setup" };
