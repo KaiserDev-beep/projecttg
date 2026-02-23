@@ -92,13 +92,13 @@
       position:relative;
     }
     .card::before{
-      content:"";
-      position:absolute; inset:-2px;
-      background: radial-gradient(800px 300px at 30% 0%, rgba(124,92,255,.16), transparent 60%),
-                  radial-gradient(680px 260px at 90% 20%, rgba(46,166,255,.12), transparent 62%);
-      pointer-events:none;
-      opacity:.9;
-    }
+  content:"";
+  position:absolute;
+  inset:-2px;
+  background: radial-gradient(800px 300px at 30% 0%, rgba(124,92,255,.16), transparent 60%),
+              radial-gradient(680px 260px at 90% 20%, rgba(46,166,255,.12), transparent 62%);
+  pointer-events: none;   /* ВАЖНО */
+}
 
     .section{
       position:relative;
