@@ -1,7 +1,18 @@
 import crypto from "crypto";
-import { getBalance, addBalance } from "./store.js";
+import { getBalance, addBalance, feedPush, feedGet, getKey, setKey } from "./store.js";
 
 const COEF_WIN = 1.95;
+
+const NPCS = [
+  { id: "npc_1", name: "BotAlpha" },
+  { id: "npc_2", name: "BotBeta" },
+  { id: "npc_3", name: "CoinGhost" }
+];
+
+// как часто можно "дорисовывать" NPC активность
+const NPC_COOLDOWN_MS = 6000;
+// сколько NPC ставок максимум за 1 запрос
+const NPC_MAX_PER_TICK = 2;
 
 function coinFlip() {
   return Math.random() < 0.5 ? "орел" : "решка";
@@ -13,44 +24,84 @@ function normalizeSide(s) {
   return null;
 }
 
-// Проверка initData (Telegram Mini Apps auth)
+// Telegram Mini Apps auth
 function verifyInitData(initData, botToken) {
-  // initData: "query_id=...&user=...&auth_date=...&hash=..."
   const params = new URLSearchParams(initData);
   const hash = params.get("hash");
-  if (!hash) return { ok: false, reason: "No hash" };
+  if (!hash) return { ok: false };
   params.delete("hash");
 
-  // data_check_string — строки key=value отсортированные по key
   const pairs = [];
   for (const [k, v] of params.entries()) pairs.push([k, v]);
   pairs.sort((a, b) => a[0].localeCompare(b[0]));
   const dataCheckString = pairs.map(([k, v]) => `${k}=${v}`).join("\n");
 
-  const secretKey = crypto
-    .createHmac("sha256", "WebAppData")
-    .update(botToken)
-    .digest();
+  const secretKey = crypto.createHmac("sha256", "WebAppData").update(botToken).digest();
+  const computedHash = crypto.createHmac("sha256", secretKey).update(dataCheckString).digest("hex");
 
-  const computedHash = crypto
-    .createHmac("sha256", secretKey)
-    .update(dataCheckString)
-    .digest("hex");
-
-  if (computedHash !== hash) return { ok: false, reason: "Bad hash" };
+  if (computedHash !== hash) return { ok: false };
 
   const userRaw = params.get("user");
   const user = userRaw ? JSON.parse(userRaw) : null;
-
   return { ok: true, user };
+}
+
+function now() {
+  return Date.now();
+}
+
+function randomNpcBet() {
+  const npc = NPCS[Math.floor(Math.random() * NPCS.length)];
+  const side = Math.random() < 0.5 ? "орел" : "решка";
+  const amount = 10 + Math.floor(Math.random() * 190); // 10..199
+  return { npc, side, amount };
+}
+
+async function npcTick() {
+  const last = Number(await getKey("npc:last_ts", "0")) || 0;
+  const t = now();
+  if (t - last < NPC_COOLDOWN_MS) return;
+
+  await setKey("npc:last_ts", String(t));
+
+  const count = Math.floor(Math.random() * (NPC_MAX_PER_TICK + 1)); // 0..2
+  for (let i = 0; i < count; i++) {
+    const { npc, side, amount } = randomNpcBet();
+
+    // NPC баланс тоже ведём (чтобы не улетал в минус)
+    const bal = await getBalance(npc.id);
+    const betAmount = Math.min(amount, bal);
+    if (betAmount <= 0) continue;
+
+    await addBalance(npc.id, -betAmount);
+
+    const result = coinFlip();
+    const win = result === side;
+    let payout = 0;
+    if (win) {
+      payout = Math.floor(betAmount * COEF_WIN);
+      await addBalance(npc.id, payout);
+    }
+
+    const newBal = await getBalance(npc.id);
+
+    await feedPush({
+      ts: t,
+      type: "npc",
+      name: npc.name,
+      chosen: side,
+      result,
+      amount: betAmount,
+      win,
+      payout,
+      balance: newBal
+    });
+  }
 }
 
 export default async (req) => {
   const botToken = process.env.BOT_TOKEN;
-
-  if (req.method !== "POST") {
-    return new Response("Only POST", { status: 405 });
-  }
+  if (req.method !== "POST") return new Response("Only POST", { status: 405 });
 
   const body = await req.json().catch(() => null);
   if (!body?.initData || !body?.action) {
@@ -69,6 +120,10 @@ export default async (req) => {
   }
 
   const userId = auth.user.id;
+  const username = auth.user.username || auth.user.first_name || "Player";
+
+  // “оживляем” мир NPC на любых действиях
+  await npcTick();
 
   if (body.action === "balance") {
     const bal = await getBalance(userId);
@@ -77,9 +132,18 @@ export default async (req) => {
     });
   }
 
+  if (body.action === "feed") {
+    const limit = Number(body.limit || 30);
+    const items = await feedGet(Math.min(50, Math.max(1, limit)));
+    return new Response(JSON.stringify({ ok: true, items }), {
+      headers: { "content-type": "application/json" }
+    });
+  }
+
   if (body.action === "bet") {
     const amount = Number(body.amount);
     const side = normalizeSide(body.side);
+
     if (!Number.isFinite(amount) || amount <= 0 || !side) {
       return new Response(JSON.stringify({ ok: false, error: "Bad bet params" }), {
         status: 400,
@@ -90,12 +154,10 @@ export default async (req) => {
     const bal = await getBalance(userId);
     if (amount > bal) {
       return new Response(JSON.stringify({ ok: false, error: "Not enough balance", balance: bal }), {
-        status: 200,
         headers: { "content-type": "application/json" }
       });
     }
 
-    // списали
     await addBalance(userId, -amount);
 
     const result = coinFlip();
@@ -108,6 +170,19 @@ export default async (req) => {
     }
 
     const newBal = await getBalance(userId);
+
+    // пишем событие игрока в ленту
+    await feedPush({
+      ts: now(),
+      type: "user",
+      name: username,
+      chosen: side,
+      result,
+      amount,
+      win,
+      payout,
+      balance: newBal
+    });
 
     return new Response(
       JSON.stringify({
