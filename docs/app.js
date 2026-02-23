@@ -3,7 +3,7 @@
   const API = "https://coinflip-bot.stexiner94.workers.dev/api";
 
   const $ = (id) => document.getElementById(id);
-  const state = { side: "орел", amount: 50, busy: false, lastBalance: null };
+  const state = { side: "орел", amount: 50, busy: false };
 
   function debug(t) {
     const d = $("debug");
@@ -66,6 +66,64 @@
     return data;
   }
 
+  // ===== ULTRA EFFECTS =====
+  function floorPulse() {
+    const f = $("floor");
+    if (!f) return;
+    f.classList.remove("pulse");
+    void f.offsetWidth;
+    f.classList.add("pulse");
+  }
+
+  function glowOn(type) {
+    const g = $("glowRing");
+    if (!g) return;
+    g.classList.remove("win", "lose", "on");
+    g.classList.add(type);
+    // next frame
+    requestAnimationFrame(() => g.classList.add("on"));
+  }
+
+  function glowOff() {
+    const g = $("glowRing");
+    if (!g) return;
+    g.classList.remove("on", "win", "lose");
+  }
+
+  function particlesBurst(type) {
+    const box = $("particles");
+    if (!box) return;
+
+    box.classList.remove("play");
+    box.innerHTML = "";
+
+    // создаём 18 частиц
+    const count = 18;
+    for (let i = 0; i < count; i++) {
+      const p = document.createElement("div");
+      p.className = "p" + (type === "lose" ? " lose" : "");
+      const angle = (Math.PI * 2) * (i / count);
+      const dist = 60 + Math.random() * 70;
+      const dx = Math.cos(angle) * dist;
+      const dy = -Math.abs(Math.sin(angle) * dist) - (20 + Math.random() * 40);
+
+      p.style.setProperty("--dx", `${dx.toFixed(1)}px`);
+      p.style.setProperty("--dy", `${dy.toFixed(1)}px`);
+      p.style.animationDelay = `${Math.random() * 80}ms`;
+
+      box.appendChild(p);
+    }
+
+    // старт
+    requestAnimationFrame(() => box.classList.add("play"));
+
+    // чистим
+    setTimeout(() => {
+      box.classList.remove("play");
+      box.innerHTML = "";
+    }, 750);
+  }
+
   function coinTossStart() {
     const el = $("coin3d");
     if (!el) return;
@@ -77,10 +135,26 @@
   function coinSetResult(result) {
     const el = $("coin3d");
     if (!el) return;
-    // После завершения toss фиксируем сторону
+    // после завершения toss фиксируем сторону
     setTimeout(() => {
       el.style.transform = result === "орел" ? "rotateY(0deg)" : "rotateY(180deg)";
-    }, 1250);
+      floorPulse();
+    }, 1350);
+  }
+
+  function animateNumber(el, to, ms = 420) {
+    if (!el) return;
+    const from = Number(el.dataset.n || "0") || 0;
+    const start = performance.now();
+    el.dataset.n = String(to);
+
+    function tick(now) {
+      const p = Math.min(1, (now - start) / ms);
+      const v = Math.floor(from + (to - from) * (1 - Math.pow(1 - p, 3)));
+      el.textContent = String(v);
+      if (p < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
   }
 
   function renderRound(data) {
@@ -92,6 +166,9 @@
     const deltaText = $("deltaText");
     const payoutText = $("payoutText");
     const list = $("roundList");
+    const winnersPoolEl = $("winnersPool");
+    const losersPoolEl = $("losersPool");
+
     if (!card) return;
 
     const you = data.you || {};
@@ -103,16 +180,21 @@
 
     coefView.textContent = Number(data.coef || 0).toFixed(2);
     resultText.textContent = `Выпало: ${String(data.result || "").toUpperCase()}`;
+    balanceText.textContent = `Баланс: ${you.balance ?? "—"}`;
 
-    const newBal = you.balance ?? "—";
-    balanceText.textContent = `Баланс: ${newBal}`;
+    // банки
+    const winnersPool = Number(data.round?.winnersPool || 0);
+    const losersPool = Number(data.round?.losersPool || 0);
+    animateNumber(winnersPoolEl, winnersPool);
+    animateNumber(losersPoolEl, losersPool);
 
-    // дельта: profit/loss
+    // дельта
     const delta = (you.payout || 0) - (you.amount || 0);
     deltaText.textContent = youWin ? `+${delta}` : `-${you.amount || 0}`;
     deltaText.style.color = youWin ? "var(--good)" : "var(--bad)";
     payoutText.textContent = `Выплата: ${youWin ? (you.payout || 0) : 0}`;
 
+    // участники
     list.innerHTML = "";
     const parts = data?.round?.participants || [];
     parts.forEach((p) => {
@@ -145,12 +227,10 @@
 
       const right = document.createElement("div");
       right.className = "right";
-      right.textContent = p.win ? "✅" : "❌";
       right.innerHTML = `${p.win ? "✅" : "❌"}<small>${p.win ? "WIN" : "LOSE"}</small>`;
 
       row.appendChild(left);
       row.appendChild(right);
-
       list.appendChild(row);
     });
 
@@ -180,7 +260,6 @@
   async function updateBalanceInline() {
     try {
       const d = await callApi("balance");
-      state.lastBalance = d.balance;
       showToast(`Баланс: ${d.balance}`);
     } catch (e) {
       showToast("Ошибка: " + e.message);
@@ -194,21 +273,25 @@
     debug("PLAY CLICK");
 
     try {
-      // 1) старт красивого подбрасывания
-      coinTossStart();
+      glowOff(); // сброс
+      coinTossStart(); // старт подбрасывания
 
-      // 2) делаем ставку
       const data = await callApi("bet", { side: state.side, amount: state.amount });
 
-      // 3) зафиксировать сторону по результату
+      // фикс стороны + “удар”
       coinSetResult(data.result);
 
-      // 4) показать результат прямо на экране
+      // эффекты по win/lose
+      const type = data.you?.win ? "win" : "lose";
+      glowOn(type);
+      particlesBurst(type);
+
+      // отрисовка результата
       renderRound(data);
 
-      // 5) feedback + toast
+      // текст без окон
       const prof = (data.you?.payout || 0) - (data.you?.amount || 0);
-      showToast(data.you?.win ? `Ты выиграл +${prof}` : `Ты проиграл -${data.you?.amount}`);
+      showToast(data.you?.win ? `WIN +${prof}` : `LOSE -${data.you?.amount}`);
 
       tg?.HapticFeedback?.notificationOccurred?.(data.you?.win ? "success" : "error");
 
@@ -217,6 +300,8 @@
       showToast("Ошибка: " + e.message);
       debug("ERR=" + e.message);
       tg?.HapticFeedback?.notificationOccurred?.("error");
+      glowOn("lose");
+      particlesBurst("lose");
     } finally {
       state.busy = false;
       setButtonBusy(false);

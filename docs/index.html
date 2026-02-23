@@ -3,12 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>CoinFlip Arena</title>
+  <title>CoinFlip Ultra</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     :root{
       --bg: var(--tg-theme-bg-color, #0b0f14);
-      --card: var(--tg-theme-secondary-bg-color, #121824);
       --text: var(--tg-theme-text-color, #e8eef7);
       --hint: var(--tg-theme-hint-color, #8aa0b6);
       --btn: var(--tg-theme-button-color, #2ea6ff);
@@ -18,6 +17,8 @@
       --bad: #ec3942;
       --glow1: rgba(124,92,255,.35);
       --glow2: rgba(46,166,255,.25);
+      --glass: rgba(255,255,255,.04);
+      --stroke: rgba(255,255,255,.08);
     }
     *{box-sizing:border-box}
     body{
@@ -45,13 +46,145 @@
     .title span{color:var(--hint);font-size:12px}
 
     .card{
-      background: rgba(255,255,255,.04);
-      border: 1px solid rgba(255,255,255,.08);
+      background: var(--glass);
+      border: 1px solid var(--stroke);
       border-radius: var(--radius);
       padding: 16px;
       box-shadow: 0 18px 50px rgba(0,0,0,.25);
       margin: 12px 0;
     }
+
+    /* ===== ULTRA ARENA ===== */
+    .arenaCard{ position:relative; overflow:hidden; }
+    .arena{
+      position:relative;
+      height: 190px;
+      display:flex;
+      align-items:flex-end;
+      justify-content:center;
+      margin: 4px 0 10px;
+    }
+
+    .floor{
+      position:absolute;
+      bottom: 18px;
+      width: 270px;
+      height: 18px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 50% 50%, rgba(46,166,255,.18), rgba(124,92,255,.10), transparent 70%);
+      opacity:.9;
+      filter: blur(.2px);
+      transform: scale(1);
+    }
+    .floor.pulse{
+      animation: floorPulse .35s ease-out;
+    }
+    @keyframes floorPulse{
+      0%{ transform: scale(1); opacity:.85 }
+      60%{ transform: scale(1.08); opacity:1 }
+      100%{ transform: scale(1); opacity:.9 }
+    }
+
+    /* glow */
+    .glowRing{
+      position:absolute;
+      inset:auto;
+      bottom: 36px;
+      width: 220px;
+      height: 220px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 50% 50%,
+        rgba(46,166,255,.18),
+        rgba(46,166,255,.06) 45%,
+        transparent 70%);
+      opacity: 0;
+      transform: scale(.85);
+      transition: opacity .25s ease, transform .25s ease, filter .25s ease;
+      filter: blur(6px);
+      pointer-events:none;
+    }
+    .glowRing.on{ opacity: 1; transform: scale(1); }
+    .glowRing.win{
+      background: radial-gradient(circle at 50% 50%,
+        rgba(46,166,255,.22),
+        rgba(46,166,255,.08) 45%,
+        transparent 72%);
+    }
+    .glowRing.lose{
+      background: radial-gradient(circle at 50% 50%,
+        rgba(236,57,66,.18),
+        rgba(236,57,66,.06) 45%,
+        transparent 72%);
+    }
+
+    .coin3d{
+      width: 102px;
+      height: 102px;
+      position: relative;
+      transform-style: preserve-3d;
+      border-radius: 50%;
+      filter: drop-shadow(0 22px 30px rgba(0,0,0,.35));
+      transform: translateY(0) rotateY(0deg) rotateX(0deg) rotateZ(0deg) scale(1);
+      will-change: transform, filter;
+    }
+    .coin-face{
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size: 48px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.40), rgba(255,255,255,.06) 50%, rgba(0,0,0,.25));
+      border: 1px solid rgba(255,255,255,.14);
+      backface-visibility:hidden;
+    }
+    .coin-back{ transform: rotateY(180deg); }
+
+    /* toss */
+    .coin3d.toss{
+      animation: toss 1.35s cubic-bezier(.16,.84,.21,1);
+    }
+    @keyframes toss{
+      0%   { transform: translateY(0) rotateX(0) rotateY(0) rotateZ(0) scale(1); }
+      14%  { transform: translateY(-26px) rotateX(240deg) rotateY(360deg) rotateZ(14deg) scale(1.02); }
+      45%  { transform: translateY(-128px) rotateX(1020deg) rotateY(1440deg) rotateZ(26deg) scale(1.05); }
+      72%  { transform: translateY(-40px) rotateX(1380deg) rotateY(1920deg) rotateZ(12deg) scale(1.01); }
+      100% { transform: translateY(0) rotateX(1560deg) rotateY(2160deg) rotateZ(0) scale(1); }
+    }
+
+    /* ===== PARTICLES ===== */
+    .particles{
+      position:absolute;
+      left: 50%;
+      bottom: 58px;
+      width: 1px;
+      height: 1px;
+      pointer-events:none;
+      transform: translateX(-50%);
+      opacity:0;
+    }
+    .particles.play{ opacity:1; }
+    .p{
+      position:absolute;
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(46,166,255,.95);
+      box-shadow: 0 0 16px rgba(46,166,255,.55);
+      transform: translate(0,0) scale(1);
+      animation: pop 650ms ease-out forwards;
+    }
+    .p.lose{
+      background: rgba(236,57,66,.95);
+      box-shadow: 0 0 16px rgba(236,57,66,.55);
+    }
+    @keyframes pop{
+      0%{ transform: translate(0,0) scale(.9); opacity:1 }
+      100%{ transform: translate(var(--dx), var(--dy)) scale(.2); opacity:0 }
+    }
+
+    /* ===== UI ===== */
     .row{display:flex;gap:10px;flex-wrap:wrap}
     .pill{
       flex:1;min-width:160px;padding:12px;border-radius:14px;
@@ -98,71 +231,8 @@
       border:1px solid rgba(255,255,255,.10);
       background:rgba(255,255,255,.03);color:var(--text);cursor:pointer
     }
-    .hint{color:var(--hint);font-size:12px;margin-top:8px;line-height:1.35}
-    #feed{margin-top:10px;display:flex;flex-direction:column;gap:8px}
-    .feed-item{
-      padding:10px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.08);
-      background:rgba(255,255,255,.03);font-size:13px;color:var(--text)
-    }
-    #debug{margin-top:10px;color:var(--hint);font-size:12px}
 
-    /* ====== COIN ARENA ====== */
-    .arena{
-      position:relative;
-      height: 170px;
-      display:flex;
-      align-items:flex-end;
-      justify-content:center;
-      margin: 10px 0 12px;
-    }
-    .floor{
-      position:absolute;
-      bottom: 18px;
-      width: 240px;
-      height: 18px;
-      border-radius: 999px;
-      background: radial-gradient(circle at 50% 50%, rgba(46,166,255,.18), rgba(124,92,255,.10), transparent 70%);
-      filter: blur(0.2px);
-      opacity:.9;
-    }
-
-    .coin3d{
-      width: 98px;
-      height: 98px;
-      position: relative;
-      transform-style: preserve-3d;
-      border-radius: 50%;
-      filter: drop-shadow(0 22px 30px rgba(0,0,0,.35));
-      transform: translateY(0) rotateY(0deg) rotateX(0deg) rotateZ(0deg) scale(1);
-      will-change: transform;
-    }
-    .coin-face{
-      position:absolute;
-      inset:0;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-size: 46px;
-      border-radius: 50%;
-      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.35), rgba(255,255,255,.06) 50%, rgba(0,0,0,.25));
-      border: 1px solid rgba(255,255,255,.14);
-      backface-visibility:hidden;
-    }
-    .coin-back{ transform: rotateY(180deg); }
-
-    /* Подбрасывание */
-    .coin3d.toss{
-      animation: toss 1.25s cubic-bezier(.16,.84,.21,1);
-    }
-    @keyframes toss{
-      0%   { transform: translateY(0) rotateX(0) rotateY(0) rotateZ(0) scale(1); }
-      15%  { transform: translateY(-22px) rotateX(180deg) rotateY(360deg) rotateZ(12deg) scale(1.02); }
-      45%  { transform: translateY(-110px) rotateX(900deg) rotateY(1200deg) rotateZ(22deg) scale(1.04); }
-      70%  { transform: translateY(-34px) rotateX(1260deg) rotateY(1620deg) rotateZ(12deg) scale(1.01); }
-      100% { transform: translateY(0) rotateX(1440deg) rotateY(1800deg) rotateZ(0) scale(1); }
-    }
-
-    /* ====== RESULT UI ====== */
+    /* result card */
     .result{
       border: 1px solid rgba(255,255,255,.10);
       background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
@@ -185,6 +255,21 @@
     .coef{ color: var(--hint); font-size: 12px; }
     .coef b{ color: var(--text); }
 
+    .banks{
+      display:flex; gap:10px; flex-wrap:wrap;
+      margin-top: 10px;
+    }
+    .bank{
+      flex:1;
+      min-width: 180px;
+      padding:10px 12px;
+      border-radius: 14px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.12);
+    }
+    .bank small{ color: var(--hint); font-weight:800; display:block; }
+    .bank b{ font-size:18px; font-weight:950; }
+
     .result-mid{ margin-top: 12px; display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
     .big{ font-size: 22px; font-weight: 950; }
     .sub{ margin-top: 6px; color: var(--hint); font-size: 13px; }
@@ -198,7 +283,7 @@
       min-width: 150px;
     }
     .money b{ font-size:16px; }
-    .money small{ display:block; color:var(--hint); font-weight:700; margin-top:4px; }
+    .money small{ display:block; color:var(--hint); font-weight:800; margin-top:4px; }
 
     .result-list{
       margin-top: 12px;
@@ -252,7 +337,14 @@
       margin-top: 2px;
     }
 
-    /* TOAST */
+    /* feed */
+    #feed{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+    .feed-item{
+      padding:10px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.03);font-size:13px;color:var(--text)
+    }
+
+    /* toast */
     .toast{
       position: fixed;
       left: 16px; right: 16px; bottom: 16px;
@@ -269,6 +361,8 @@
       z-index: 9999;
       display:none;
     }
+
+    #debug{margin-top:10px;color:var(--hint);font-size:12px}
   </style>
 </head>
 <body>
@@ -277,15 +371,18 @@
       <div class="brand">
         <div class="logo">🪙</div>
         <div class="title">
-          <b>CoinFlip Arena</b>
-          <span>Ты + NPC в одном раунде • банк • коэффициент</span>
+          <b>CoinFlip Ultra</b>
+          <span>ТЫ + NPC • банк • коэффициент • ультра-эффекты</span>
         </div>
       </div>
     </div>
 
-    <div class="card">
+    <div class="card arenaCard">
       <div class="arena">
-        <div class="floor"></div>
+        <div id="glowRing" class="glowRing"></div>
+        <div id="particles" class="particles"></div>
+        <div id="floor" class="floor"></div>
+
         <div id="coin3d" class="coin3d">
           <div class="coin-face coin-front">🦅</div>
           <div class="coin-face coin-back">🪙</div>
@@ -296,6 +393,17 @@
         <div class="result-top">
           <div class="badge" id="resultBadge">ROUND</div>
           <div class="coef">Коэф: <b id="coefView">—</b></div>
+        </div>
+
+        <div class="banks">
+          <div class="bank">
+            <small>Банк победителей</small>
+            <b id="winnersPool">—</b>
+          </div>
+          <div class="bank">
+            <small>Банк проигравших</small>
+            <b id="losersPool">—</b>
+          </div>
         </div>
 
         <div class="result-mid">
@@ -343,7 +451,7 @@
         <button id="play" class="cta">Сделать ставку</button>
         <button id="balance" class="ghost">Показать баланс</button>
 
-        <div class="hint">Результат и баланс показываются прямо в приложении (без окон).</div>
+        <div class="hint">Результат — на экране. Эффекты зависят от WIN/LOSE.</div>
         <div id="debug"></div>
       </div>
     </div>
@@ -357,6 +465,6 @@
 
   <div id="toast" class="toast"></div>
 
-  <script src="./app.js?v=20260224_9"></script>
+  <script src="./app.js?v=20260224_ultra1"></script>
 </body>
 </html>
