@@ -37,7 +37,7 @@ export default async (req) => {
     menu_button: {
       type: "web_app",
       text: "Играть",
-      web_app: { url: webAppUrl }
+      web_app: { url: "https://projecttg.pages.dev" }
     }
   });
 

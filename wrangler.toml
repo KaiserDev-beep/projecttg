@@ -1,0 +1,6 @@
+name = "coinflip-bot"
+main = "worker.js"
+compatibility_date = "2026-02-23"
+kv_namespaces = [
+  { binding = "KV", id = "2ea7c5612c244ef9bc7424ebe22d1252" }
+]
