@@ -17,6 +17,7 @@ const NPC_MAX_PER_TICK = 2;
 function coinFlip() {
   return Math.random() < 0.5 ? "орел" : "решка";
 }
+
 function normalizeSide(s) {
   s = (s || "").toLowerCase();
   if (["орел", "орёл"].includes(s)) return "орел";
@@ -204,5 +205,3 @@ export default async (req) => {
     headers: { "content-type": "application/json" }
   });
 };
-
-export const config = { path: "/.netlify/functions/api" };
