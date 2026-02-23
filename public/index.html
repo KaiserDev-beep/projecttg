@@ -92,13 +92,13 @@
       position:relative;
     }
     .card::before{
-  content:"";
-  position:absolute;
-  inset:-2px;
-  background: radial-gradient(800px 300px at 30% 0%, rgba(124,92,255,.16), transparent 60%),
-              radial-gradient(680px 260px at 90% 20%, rgba(46,166,255,.12), transparent 62%);
-  pointer-events: none;   /* ВАЖНО */
-}
+      content:"";
+      position:absolute; inset:-2px;
+      background: radial-gradient(800px 300px at 30% 0%, rgba(124,92,255,.16), transparent 60%),
+                  radial-gradient(680px 260px at 90% 20%, rgba(46,166,255,.12), transparent 62%);
+      pointer-events:none;
+      opacity:.9;
+    }
 
     .section{
       position:relative;
@@ -324,16 +324,6 @@
       margin-top: 10px;
       opacity:.9;
     }
-    /* HARD FIX: ничего декоративного не должно ловить клики */
-.card::before, .stage::after, .logo::after { pointer-events: none !important; }
-
-/* HARD FIX: все кликабельные элементы обязаны ловить pointer events */
-button, .chip, #btnOrel, #btnReshka, #play, #balance, #refreshFeed {
-  pointer-events: auto !important;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-}
   </style>
 </head>
 
@@ -386,17 +376,21 @@ button, .chip, #btnOrel, #btnReshka, #play, #balance, #refreshFeed {
         </div>
 
         <div class="seg">
-          <button type="button" id="btnOrel" class="active">🦅 Орёл</button>
-<button type="button" id="btnReshka">🪙 Решка</button>
+          <button id="btnOrel" class="active">🦅 Орёл</button>
+          <button id="btnReshka">🪙 Решка</button>
+        </div>
 
-<button type="button" class="chip" data-amt="10">10</button>
-<button type="button" class="chip" data-amt="50">50</button>
-<button type="button" class="chip" data-amt="100">100</button>
-<button type="button" class="chip" data-amt="250">250</button>
+        <div class="grid4">
+          <button class="chip" data-amt="10">10</button>
+          <button class="chip" data-amt="50">50</button>
+          <button class="chip" data-amt="100">100</button>
+          <button class="chip" data-amt="250">250</button>
+        </div>
 
-<button type="button" id="play" class="cta">🎲 Сделать ставку</button>
-<button type="button" id="balance" class="ghost">💰 Показать баланс</button>
-<button type="button" id="refreshFeed" class="ghost" style="margin:0; width:auto; padding:10px 12px;">↻</button>
+        <input id="amount" class="input" type="number" min="1" value="50" inputmode="numeric" />
+
+        <button id="play" class="cta">🎲 Сделать ставку</button>
+        <button id="balance" class="ghost">💰 Показать баланс</button>
 
         <div class="feedCard">
           <div class="feedHead">
@@ -414,6 +408,6 @@ button, .chip, #btnOrel, #btnReshka, #play, #balance, #refreshFeed {
     </div>
   </div>
 
-  <script src="/app.js?v=20"></script>
+ <script src="/app.js?v=2"></script>
 </body>
 </html>
