@@ -1,186 +1,106 @@
-// public/app.js (compatible for Telegram Desktop + iOS)
 (function () {
-  function $(id) { return document.getElementById(id); }
+  const tg = window.Telegram?.WebApp;
 
-  var tg = null;
-  try { if (window.Telegram && window.Telegram.WebApp) tg = window.Telegram.WebApp; } catch (e) {}
+  const el = (id) => document.getElementById(id);
+  const API = "https://coinflip-bot.stexiner94.workers.dev/api";
 
-  var state = { side: "орел", amount: 50, busy: false };
+  const state = { side: "орел", amount: 50 };
 
-  function toast(text) {
-    try {
-      if (tg && tg.showPopup) {
-        tg.showPopup({ title: "CoinFlip", message: String(text), buttons: [{ type: "ok" }] });
-      } else {
-        alert(text);
-      }
-    } catch (e) { alert(text); }
-  }
-
-  function setActiveSide(side) {
+  function setSide(side) {
     state.side = side;
-    var o = $("btnOrel");
-    var r = $("btnReshka");
-    var v = $("sideView");
-    if (o) o.classList.toggle("active", side === "орел");
-    if (r) r.classList.toggle("active", side === "решка");
-    if (v) v.textContent = side;
+    el("sideView").textContent = side;
+    el("btnOrel").classList.toggle("active", side === "орел");
+    el("btnReshka").classList.toggle("active", side === "решка");
   }
 
-  function setAmount(val) {
-    var n = Math.max(1, Math.floor(Number(val) || 1));
+  function setAmount(v) {
+    const n = Math.max(1, Math.floor(Number(v) || 1));
     state.amount = n;
-
-    var input = $("amount");
-    var view = $("amountView");
-    if (input) input.value = String(n);
-    if (view) view.textContent = String(n);
-
-    var chips = document.querySelectorAll(".chip");
-    for (var i = 0; i < chips.length; i++) {
-      var b = chips[i];
-      var amt = Number(b.getAttribute("data-amt"));
-      b.classList.toggle("active", amt === n);
-    }
+    el("amount").value = String(n);
+    el("amountView").textContent = String(n);
+    document.querySelectorAll(".chip").forEach((b) => {
+      b.classList.toggle("active", Number(b.dataset.amt) === n);
+    });
   }
 
-  function api(action, payload, cb) {
-    payload = payload || {};
-    var initData = "";
-    try { initData = tg ? (tg.initData || "") : ""; } catch (e) {}
-
-    var body = { action: action, initData: initData };
-    for (var k in payload) body[k] = payload[k];
-
-    // Заменить в public/app.js
-    const API_BASE = "https://coinflip-bot.stexiner94.workers.dev";
-
-fetch(`${API_BASE}/api`, {
-  method: "POST",
-  headers: { "content-type": "application/json" },
-  body: JSON.stringify(body)
-})
-      .then(function (res) { return res.json(); })
-      .then(function (data) {
-        if (!data || !data.ok) throw new Error((data && data.error) || "Request failed");
-        cb(null, data);
-      })
-      .catch(function (err) { cb(err); });
+  async function callApi(action, payload = {}) {
+    const body = { action, ...payload, initData: tg?.initData || "" };
+    const r = await fetch(API, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.error || "API error");
+    return data;
   }
 
-  function renderRoundFeed(items) {
-    var feed = $("feed");
-    if (!feed) return;
+  async function refreshFeed() {
+    const r = await fetch(API, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "feed", limit: 20 }),
+    });
+    const data = await r.json();
+    const feed = el("feed");
     feed.innerHTML = "";
+    (data.items || []).forEach((it) => {
+      if (it.type !== "round") return;
+      const div = document.createElement("div");
+      div.className = "feed-item";
+      div.textContent = `Раунд: выпало ${it.result} (коэф ${Number(it.coef).toFixed(2)})`;
+      feed.appendChild(div);
+    });
+  }
 
-    for (var i = 0; i < items.length; i++) {
-      var it = items[i];
-      if (!it || it.type !== "round") continue;
+  async function play() {
+    try {
+      const data = await callApi("bet", { side: state.side, amount: state.amount });
+      tg?.showPopup?.({
+        title: data.you.win ? "✅ WIN" : "❌ LOSE",
+        message: `Выпало: ${data.result}\nБаланс: ${data.you.balance}`,
+        buttons: [{ type: "ok" }],
+      }) || alert(`Выпало: ${data.result}\nБаланс: ${data.you.balance}`);
+      await refreshFeed();
+    } catch (e) {
+      alert("Ошибка: " + e.message);
+    }
+  }
 
-      var head = document.createElement("div");
-      head.className = "feed-item";
-      var coef = Number(it.coef || 0).toFixed(2);
-      var ts = it.ts ? new Date(it.ts).toLocaleTimeString() : "";
-      head.innerHTML =
-        '<div style="display:flex;justify-content:space-between;gap:10px;">' +
-          "<b>Раунд</b>" +
-          '<span style="color:var(--hint)">' + ts + "</span>" +
-        "</div>" +
-        '<div style="margin-top:6px;">Выпало: <b>' + it.result + "</b> • Коэф: <b>" + coef + "</b></div>";
-      feed.appendChild(head);
+  function bind() {
+    tg?.ready?.();
+    tg?.expand?.();
 
-      var parts = it.participants || [];
-      for (var j = 0; j < parts.length && j < 12; j++) {
-        var p = parts[j];
-        var row = document.createElement("div");
-        row.className = "feed-item " + (p.win ? "win" : "lose");
-        row.innerHTML =
-          "<b>" + (p.isNpc ? "🤖 " : "🧑 ") + p.name + "</b> — " +
-          p.side + " — ставка " + p.amount + " — " + (p.win ? "WIN" : "LOSE");
-        feed.appendChild(row);
+    // ВАЖНО: используем pointer events + click (не touchstart)
+    el("btnOrel").addEventListener("click", () => setSide("орел"));
+    el("btnReshka").addEventListener("click", () => setSide("решка"));
+
+    document.querySelectorAll(".chip").forEach((b) => {
+      b.addEventListener("click", () => setAmount(b.dataset.amt));
+    });
+
+    el("amount").addEventListener("input", (e) => setAmount(e.target.value));
+    el("play").addEventListener("click", play);
+
+    el("balance").addEventListener("click", async () => {
+      try {
+        const data = await callApi("balance");
+        alert("Баланс: " + data.balance);
+      } catch (e) {
+        alert("Ошибка: " + e.message);
       }
-    }
-  }
-
-  function refreshFeed() {
-    api("feed", { limit: 20 }, function (err, data) {
-      if (err) return;
-      renderRoundFeed(data.items || []);
     });
-  }
 
-  function refreshBalance() {
-    api("balance", {}, function (err, data) {
-      if (err) return toast("Ошибка баланса: " + (err.message || err));
-      toast("Баланс: " + data.balance);
-    });
-  }
+    el("refreshFeed")?.addEventListener("click", refreshFeed);
 
-  function play() {
-    if (state.busy) return;
-    state.busy = true;
-
-    var playBtn = $("play");
-    if (playBtn) playBtn.disabled = true;
-
-    api("bet", { side: state.side, amount: state.amount }, function (err, data) {
-      state.busy = false;
-      if (playBtn) playBtn.disabled = false;
-
-      if (err) return toast("Ошибка ставки: " + (err.message || err));
-
-      var you = data.you || {};
-      var coef = Number(data.coef || 0).toFixed(2);
-
-      if (you.win) {
-        toast("✅ WIN!\nВыпало: " + data.result + "\nКоэф: " + coef +
-              "\nВыплата: " + you.payout + "\nБаланс: " + you.balance);
-      } else {
-        toast("❌ LOSE.\nВыпало: " + data.result + "\nКоэф: " + coef +
-              "\nБаланс: " + you.balance);
-      }
-
-      refreshFeed();
-    });
-  }
-
-  function onClick(el, fn) {
-    if (!el) return;
-    el.addEventListener("click", fn);
-  }
-
-  function wireUI() {
-    try { if (tg && tg.ready) tg.ready(); } catch (e) {}
-    try { if (tg && tg.expand) tg.expand(); } catch (e) {}
-
-    setActiveSide(state.side);
-    setAmount(state.amount);
-
-    onClick($("btnOrel"), function () { setActiveSide("орел"); });
-    onClick($("btnReshka"), function () { setActiveSide("решка"); });
-
-    var chips = document.querySelectorAll(".chip");
-    for (var i = 0; i < chips.length; i++) {
-      (function (b) {
-        onClick(b, function () { setAmount(b.getAttribute("data-amt")); });
-      })(chips[i]);
-    }
-
-    var amountInput = $("amount");
-    if (amountInput) {
-      amountInput.addEventListener("input", function (e) { setAmount(e.target.value); });
-    }
-
-    onClick($("play"), play);
-    onClick($("balance"), refreshBalance);
-    onClick($("refreshFeed"), refreshFeed);
-
+    setSide("орел");
+    setAmount(50);
     refreshFeed();
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", wireUI);
+    document.addEventListener("DOMContentLoaded", bind);
   } else {
-    wireUI();
+    bind();
   }
 })();
