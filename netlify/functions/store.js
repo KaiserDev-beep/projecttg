@@ -2,7 +2,6 @@
 const hasUpstash =
   process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN;
 
-// fallback memory (для теста ок; без Redis на Netlify может сбрасываться)
 const mem = new Map();
 
 async function redisCmd(cmd, ...args) {
@@ -16,12 +15,11 @@ async function redisCmd(cmd, ...args) {
   return res.json();
 }
 
-// ===== Balances =====
 export async function getBalance(userId) {
   if (hasUpstash) {
     const r = await redisCmd("get", `bal:${userId}`);
     const val = r?.result;
-    return val ? Number(val) : 1000; // стартовый баланс
+    return val ? Number(val) : 1000;
   }
   return mem.get(`bal:${userId}`) ?? 1000;
 }
@@ -41,7 +39,6 @@ export async function addBalance(userId, delta) {
   return next;
 }
 
-// ===== Generic KV =====
 export async function getKey(key, fallback = null) {
   if (hasUpstash) {
     const r = await redisCmd("get", key);
@@ -58,7 +55,6 @@ export async function setKey(key, value) {
   mem.set(key, value);
 }
 
-// ===== Feed =====
 export async function feedPush(eventObj) {
   const key = "feed:global";
   const raw = JSON.stringify(eventObj);
@@ -83,11 +79,7 @@ export async function feedGet(limit = 30) {
     const list = r?.result ?? [];
     return list
       .map((x) => {
-        try {
-          return JSON.parse(x);
-        } catch {
-          return null;
-        }
+        try { return JSON.parse(x); } catch { return null; }
       })
       .filter(Boolean);
   }
