@@ -1,26 +1,33 @@
-(function () {
+(() => {
   const tg = window.Telegram?.WebApp;
-
-  const el = (id) => document.getElementById(id);
   const API = "https://coinflip-bot.stexiner94.workers.dev/api";
 
-  const state = { side: "орел", amount: 50 };
+  const $ = (id) => document.getElementById(id);
+  const state = { side: "орел", amount: 50, busy: false };
+
+  function debug(t) {
+    const d = $("debug");
+    if (d) d.textContent = t;
+    console.log(t);
+  }
 
   function setSide(side) {
     state.side = side;
-    el("sideView").textContent = side;
-    el("btnOrel").classList.toggle("active", side === "орел");
-    el("btnReshka").classList.toggle("active", side === "решка");
+    $("sideView").textContent = side;
+    $("btnOrel").classList.toggle("active", side === "орел");
+    $("btnReshka").classList.toggle("active", side === "решка");
+    debug("SIDE=" + side);
   }
 
   function setAmount(v) {
     const n = Math.max(1, Math.floor(Number(v) || 1));
     state.amount = n;
-    el("amount").value = String(n);
-    el("amountView").textContent = String(n);
+    $("amount").value = String(n);
+    $("amountView").textContent = String(n);
     document.querySelectorAll(".chip").forEach((b) => {
       b.classList.toggle("active", Number(b.dataset.amt) === n);
     });
+    debug("AMOUNT=" + n);
   }
 
   async function callApi(action, payload = {}) {
@@ -42,28 +49,32 @@
       body: JSON.stringify({ action: "feed", limit: 20 }),
     });
     const data = await r.json();
-    const feed = el("feed");
+    const feed = $("feed");
     feed.innerHTML = "";
     (data.items || []).forEach((it) => {
       if (it.type !== "round") return;
       const div = document.createElement("div");
       div.className = "feed-item";
-      div.textContent = `Раунд: выпало ${it.result} (коэф ${Number(it.coef).toFixed(2)})`;
+      div.textContent = `Раунд: выпало ${it.result} (коэф ${Number(it.coef || 0).toFixed(2)})`;
       feed.appendChild(div);
     });
   }
 
   async function play() {
+    if (state.busy) return;
+    state.busy = true;
+    debug("PLAY CLICK");
     try {
       const data = await callApi("bet", { side: state.side, amount: state.amount });
-      tg?.showPopup?.({
-        title: data.you.win ? "✅ WIN" : "❌ LOSE",
-        message: `Выпало: ${data.result}\nБаланс: ${data.you.balance}`,
-        buttons: [{ type: "ok" }],
-      }) || alert(`Выпало: ${data.result}\nБаланс: ${data.you.balance}`);
+      const msg = `Выпало: ${data.result}\nБаланс: ${data.you.balance}`;
+      tg?.showPopup?.({ title: data.you.win ? "✅ WIN" : "❌ LOSE", message: msg, buttons: [{ type: "ok" }] })
+        || alert(msg);
       await refreshFeed();
     } catch (e) {
       alert("Ошибка: " + e.message);
+      debug("ERR=" + e.message);
+    } finally {
+      state.busy = false;
     }
   }
 
@@ -71,36 +82,35 @@
     tg?.ready?.();
     tg?.expand?.();
 
-    // ВАЖНО: используем pointer events + click (не touchstart)
-    el("btnOrel").addEventListener("click", () => setSide("орел"));
-    el("btnReshka").addEventListener("click", () => setSide("решка"));
+    // ловим клики надёжно (даже если нажал на текст внутри кнопки)
+    document.addEventListener("pointerdown", (e) => {
+      const t = e.target;
 
-    document.querySelectorAll(".chip").forEach((b) => {
-      b.addEventListener("click", () => setAmount(b.dataset.amt));
-    });
+      if (t.closest("#btnOrel")) return setSide("орел");
+      if (t.closest("#btnReshka")) return setSide("решка");
 
-    el("amount").addEventListener("input", (e) => setAmount(e.target.value));
-    el("play").addEventListener("click", play);
+      const chip = t.closest(".chip");
+      if (chip) return setAmount(chip.dataset.amt);
 
-    el("balance").addEventListener("click", async () => {
-      try {
-        const data = await callApi("balance");
-        alert("Баланс: " + data.balance);
-      } catch (e) {
-        alert("Ошибка: " + e.message);
+      if (t.closest("#play")) return play();
+
+      if (t.closest("#balance")) {
+        debug("BALANCE CLICK");
+        callApi("balance").then(d => alert("Баланс: " + d.balance)).catch(err => alert(err.message));
+        return;
       }
-    });
 
-    el("refreshFeed")?.addEventListener("click", refreshFeed);
+      if (t.closest("#refreshFeed")) return refreshFeed();
+    }, { capture: true });
+
+    $("amount").addEventListener("input", (e) => setAmount(e.target.value));
 
     setSide("орел");
     setAmount(50);
     refreshFeed();
+    debug("APP LOADED ✅");
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", bind);
-  } else {
-    bind();
-  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind);
+  else bind();
 })();
