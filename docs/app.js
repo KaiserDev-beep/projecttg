@@ -54,11 +54,12 @@
 
     // Заменить в public/app.js
     const API_BASE = "https://coinflip-bot.stexiner94.workers.dev";
-fetch("https://coinflip-bot.stexiner94.workers.dev/api", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body)
-    })
+
+fetch(`${API_BASE}/api`, {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify(body)
+})
       .then(function (res) { return res.json(); })
       .then(function (data) {
         if (!data || !data.ok) throw new Error((data && data.error) || "Request failed");
