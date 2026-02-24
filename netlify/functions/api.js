@@ -1,18 +1,13 @@
+
 import crypto from "crypto";
-import { getBalance, addBalance, feedPush, feedGet, getKey, setKey } from "./store.js";
+import { getBalance, addBalance, feedPush, feedGet } from "./store.js";
 
-const COEF_WIN = 1.95;
-
-const NPCS = [
-  { id: "npc_1", name: "BotAlpha" },
-  { id: "npc_2", name: "BotBeta" },
-  { id: "npc_3", name: "CoinGhost" }
-];
-
-// как часто можно "дорисовывать" NPC активность
-const NPC_COOLDOWN_MS = 6000;
-// сколько NPC ставок максимум за 1 запрос
-const NPC_MAX_PER_TICK = 2;
+function json(status, obj) {
+  return new Response(JSON.stringify(obj), {
+    status,
+    headers: { "content-type": "application/json; charset=utf-8" },
+  });
+}
 
 function coinFlip() {
   return Math.random() < 0.5 ? "орел" : "решка";
@@ -47,161 +42,185 @@ function verifyInitData(initData, botToken) {
   return { ok: true, user };
 }
 
-function now() {
-  return Date.now();
+const NPCS = [
+  { id: "npc_1", name: "BotAlpha" },
+  { id: "npc_2", name: "BotBeta" },
+  { id: "npc_3", name: "CoinGhost" },
+];
+
+function rand(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
 function randomNpcBet() {
-  const npc = NPCS[Math.floor(Math.random() * NPCS.length)];
+  const npc = NPCS[rand(0, NPCS.length - 1)];
   const side = Math.random() < 0.5 ? "орел" : "решка";
-  const amount = 10 + Math.floor(Math.random() * 190); // 10..199
+  const amount = [10, 25, 50, 75, 100, 150, 200][rand(0, 6)];
   return { npc, side, amount };
 }
 
-async function npcTick() {
-  const last = Number(await getKey("npc:last_ts", "0")) || 0;
-  const t = now();
-  if (t - last < NPC_COOLDOWN_MS) return;
-
-  await setKey("npc:last_ts", String(t));
-
-  const count = Math.floor(Math.random() * (NPC_MAX_PER_TICK + 1)); // 0..2
-  for (let i = 0; i < count; i++) {
-    const { npc, side, amount } = randomNpcBet();
-
-    // NPC баланс тоже ведём (чтобы не улетал в минус)
-    const bal = await getBalance(npc.id);
-    const betAmount = Math.min(amount, bal);
-    if (betAmount <= 0) continue;
-
-    await addBalance(npc.id, -betAmount);
-
-    const result = coinFlip();
-    const win = result === side;
-    let payout = 0;
-    if (win) {
-      payout = Math.floor(betAmount * COEF_WIN);
-      await addBalance(npc.id, payout);
-    }
-
-    const newBal = await getBalance(npc.id);
-
-    await feedPush({
-      ts: t,
-      type: "npc",
-      name: npc.name,
-      chosen: side,
-      result,
-      amount: betAmount,
-      win,
-      payout,
-      balance: newBal
-    });
-  }
+function isoNow() {
+  return new Date().toISOString();
 }
 
 export default async (req) => {
   const botToken = process.env.BOT_TOKEN;
+  if (!botToken) return json(500, { ok: false, error: "BOT_TOKEN missing" });
+
   if (req.method !== "POST") return new Response("Only POST", { status: 405 });
 
   const body = await req.json().catch(() => null);
-  if (!body?.initData || !body?.action) {
-    return new Response(JSON.stringify({ ok: false, error: "Bad request" }), {
-      status: 400,
-      headers: { "content-type": "application/json" }
-    });
+  if (!body?.action) return json(400, { ok: false, error: "Bad request" });
+
+  // feed можно отдавать без авторизации
+  if (body.action === "feed") {
+    const limit = Math.min(50, Math.max(1, Number(body.limit || 30)));
+    const items = await feedGet(limit);
+    return json(200, { ok: true, items });
   }
 
-  const auth = verifyInitData(body.initData, botToken);
-  if (!auth.ok || !auth.user?.id) {
-    return new Response(JSON.stringify({ ok: false, error: "Unauthorized" }), {
-      status: 401,
-      headers: { "content-type": "application/json" }
-    });
-  }
+  // Всё остальное — только из Telegram Mini App
+  const auth = verifyInitData(body.initData || "", botToken);
+  if (!auth.ok || !auth.user?.id) return json(401, { ok: false, error: "Unauthorized" });
 
-  const userId = auth.user.id;
-  const username = auth.user.username || auth.user.first_name || "Player";
-
-  // “оживляем” мир NPC на любых действиях
-  await npcTick();
+  const userId = String(auth.user.id);
+  const username = auth.user.username ? `@${auth.user.username}` : (auth.user.first_name || "Player");
 
   if (body.action === "balance") {
     const bal = await getBalance(userId);
-    return new Response(JSON.stringify({ ok: true, balance: bal }), {
-      headers: { "content-type": "application/json" }
-    });
-  }
-
-  if (body.action === "feed") {
-    const limit = Number(body.limit || 30);
-    const items = await feedGet(Math.min(50, Math.max(1, limit)));
-    return new Response(JSON.stringify({ ok: true, items }), {
-      headers: { "content-type": "application/json" }
-    });
+    return json(200, { ok: true, balance: bal });
   }
 
   if (body.action === "bet") {
-    const amount = Number(body.amount);
+    const amount = Math.floor(Number(body.amount));
     const side = normalizeSide(body.side);
 
     if (!Number.isFinite(amount) || amount <= 0 || !side) {
-      return new Response(JSON.stringify({ ok: false, error: "Bad bet params" }), {
-        status: 400,
-        headers: { "content-type": "application/json" }
-      });
+      return json(400, { ok: false, error: "Bad bet params" });
     }
 
-    const bal = await getBalance(userId);
-    if (amount > bal) {
-      return new Response(JSON.stringify({ ok: false, error: "Not enough balance", balance: bal }), {
-        headers: { "content-type": "application/json" }
-      });
+    const userBal = await getBalance(userId);
+    if (amount > userBal) {
+      return json(400, { ok: false, error: "Not enough balance", balance: userBal });
     }
 
-    await addBalance(userId, -amount);
+    // Создаём участников раунда: user + NPC (вместе!)
+    const participants = [];
 
-    const result = coinFlip();
-    const win = result === side;
-    let payout = 0;
-
-    if (win) {
-      payout = Math.floor(amount * COEF_WIN);
-      await addBalance(userId, payout);
-    }
-
-    const newBal = await getBalance(userId);
-
-    // пишем событие игрока в ленту
-    await feedPush({
-      ts: now(),
-      type: "user",
+    participants.push({
+      id: userId,
       name: username,
-      chosen: side,
-      result,
+      isNpc: false,
+      side,
       amount,
-      win,
-      payout,
-      balance: newBal
     });
 
-    return new Response(
-      JSON.stringify({
-        ok: true,
-        win,
-        chosen: side,
-        result,
+    // NPC: 1..3 ставок в раунд (настрой как хочешь)
+    const npcCount = rand(1, 3);
+    for (let i = 0; i < npcCount; i++) {
+      const { npc, side: npcSide, amount: npcAmt } = randomNpcBet();
+      const bal = await getBalance(npc.id);
+      const betAmt = Math.min(npcAmt, bal);
+      if (betAmt <= 0) continue;
+
+      participants.push({
+        id: npc.id,
+        name: npc.name,
+        isNpc: true,
+        side: npcSide,
+        amount: betAmt,
+      });
+    }
+
+    // Списываем ставки у всех участников
+    for (const p of participants) {
+      await addBalance(p.id, -p.amount);
+    }
+
+    const result = coinFlip();
+
+    const winners = participants.filter((p) => p.side === result);
+    const losers = participants.filter((p) => p.side !== result);
+
+    const winnersPool = winners.reduce((s, p) => s + p.amount, 0);
+    const losersPool = losers.reduce((s, p) => s + p.amount, 0);
+
+    // коэффициент раунда (для победителей)
+    const coef = winnersPool > 0 ? (1 + losersPool / winnersPool) : 0;
+
+    // Выплаты победителям (возврат ставки + доля банка проигравших)
+    const payouts = [];
+    if (winnersPool > 0) {
+      for (const w of winners) {
+        const share = losersPool * (w.amount / winnersPool);
+        const payout = Math.floor(w.amount + share);
+        await addBalance(w.id, payout);
+
+        payouts.push({
+          id: w.id,
+          name: w.name,
+          isNpc: w.isNpc,
+          amount: w.amount,
+          payout,
+          profit: payout - w.amount,
+        });
+      }
+    }
+
+    // Итоговые балансы (только для удобства фронта — покажем игрока)
+    const newUserBal = await getBalance(userId);
+
+    // Запишем в ленту ОДНО событие раунда (и участники внутри)
+    await feedPush({
+      ts: isoNow(),
+      type: "round",
+      result,
+      coef: winnersPool > 0 ? Number(coef.toFixed(4)) : 0,
+      totals: {
+        players: participants.length,
+        winners: winners.length,
+        losers: losers.length,
+        winnersPool,
+        losersPool,
+      },
+      participants: participants.map((p) => ({
+        name: p.name,
+        isNpc: p.isNpc,
+        side: p.side,
+        amount: p.amount,
+        win: p.side === result,
+      })),
+      payouts,
+    });
+
+    // Ответ клиенту (важно: фронт покажет “кто сколько получил”)
+    const youWin = side === result && winnersPool > 0;
+    const yourPayout = payouts.find((x) => x.id === userId)?.payout ?? 0;
+
+    return json(200, {
+      ok: true,
+      result,
+      coef: winnersPool > 0 ? Number(coef.toFixed(4)) : 0,
+      you: {
+        side,
         amount,
-        payout,
-        coef: COEF_WIN,
-        balance: newBal
-      }),
-      { headers: { "content-type": "application/json" } }
-    );
+        win: youWin,
+        payout: yourPayout,
+        balance: newUserBal,
+      },
+      round: {
+        participants: participants.map((p) => ({
+          name: p.name,
+          isNpc: p.isNpc,
+          side: p.side,
+          amount: p.amount,
+          win: p.side === result,
+        })),
+        winnersPool,
+        losersPool,
+      },
+    });
   }
 
-  return new Response(JSON.stringify({ ok: false, error: "Unknown action" }), {
-    status: 400,
-    headers: { "content-type": "application/json" }
-  });
+  return json(400, { ok: false, error: "Unknown action" });
 };
