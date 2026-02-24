@@ -1,12 +1,15 @@
 (() => {
   const tg = window.Telegram?.WebApp;
-  const API = "https://coinflip-bot.stexiner94.workers.dev/api";
+
+  // 1) можно переопределить API через ?api=https://.../api
+  const url = new URL(location.href);
+  const API = url.searchParams.get("api") || "https://coinflip-bot.stexiner94.workers.dev/api";
 
   const $ = (id) => document.getElementById(id);
   const state = { side: "орел", amount: 50, busy: false };
 
-  const TOSS_MS = 1450;          // длительность toss анимации (CSS)
-  const REVEAL_AT_MS = 1200;     // когда раскрывать результат (чуть до приземления)
+  const TOSS_MS = 1450;
+  const REVEAL_AT_MS = 1200;
 
   function debug(t) {
     const d = $("debug");
@@ -58,9 +61,10 @@
       user: tg?.initDataUnsafe?.user || null,
     };
 
+    // простой “анти-кэш” на всякий случай
     const r = await fetch(API, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "cache-control": "no-cache" },
       body: JSON.stringify(body),
     });
 
@@ -69,7 +73,7 @@
     return data;
   }
 
-  // ===== ЭФФЕКТЫ =====
+  // ===== FX =====
   function floorPulse() {
     const f = $("floor");
     if (!f) return;
@@ -85,6 +89,7 @@
     g.classList.add(type);
     requestAnimationFrame(() => g.classList.add("on"));
   }
+
   function glowOff() {
     const g = $("glowRing");
     if (!g) return;
@@ -115,7 +120,7 @@
     setTimeout(() => { box.innerHTML = ""; }, 800);
   }
 
-  // ===== МОНЕТА =====
+  // ===== COIN =====
   function setCoinFaces(front, back) {
     const cf = $("coinFront");
     const cb = $("coinBack");
@@ -127,14 +132,12 @@
     const el = $("coin3d");
     if (!el) return;
 
-    // КЛЮЧЕВОЕ: убираем финальный inline-transform от прошлого раунда
+    // IMPORTANT: сброс прошлого финального rotateY, иначе “залипает орёл”
     el.style.transform = "";
     el.dataset.final = "";
 
-    // скрываем результат на старте
     setCoinFaces("❔", "❔");
 
-    // сброс анимации
     el.classList.remove("toss");
     void el.offsetWidth;
   }
@@ -145,14 +148,13 @@
 
     glowOff();
     coinHardResetForNextToss();
-
-    // запускаем toss
     el.classList.add("toss");
   }
 
   function coinRevealResult(result) {
-    // именно в конце полёта раскрываем, какие стороны у монеты
+    // стороны монеты
     setCoinFaces("🦅", "🪙");
+
     const el = $("coin3d");
     if (!el) return;
     el.dataset.final = (result === "орел") ? "0" : "180";
@@ -161,9 +163,8 @@
   function coinLandApplyFinal() {
     const el = $("coin3d");
     if (!el) return;
-    const deg = el.dataset.final || "0";
 
-    // заканчиваем анимацию и фиксируем сторону
+    const deg = el.dataset.final || "0";
     el.classList.remove("toss");
     el.style.transform = `rotateY(${deg}deg)`;
 
@@ -187,6 +188,8 @@
 
   function renderRound(data) {
     const card = $("resultCard");
+    if (!card) return;
+
     const badge = $("resultBadge");
     const coefView = $("coefView");
     const resultText = $("resultText");
@@ -196,8 +199,6 @@
     const list = $("roundList");
     const winnersPoolEl = $("winnersPool");
     const losersPoolEl = $("losersPool");
-
-    if (!card) return;
 
     const you = data.you || {};
     const youWin = !!you.win;
@@ -265,7 +266,7 @@
   async function refreshFeed() {
     const r = await fetch(API, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "cache-control": "no-cache" },
       body: JSON.stringify({ action: "feed", limit: 20 }),
     });
 
@@ -295,17 +296,15 @@
     if (state.busy) return;
     state.busy = true;
     setButtonBusy(true);
-    debug("PLAY CLICK");
+    debug("PLAY CLICK | API=" + API);
 
     try {
       coinTossStart();
 
       const data = await callApi("bet", { side: state.side, amount: state.amount });
 
-      // раскрываем результат ближе к приземлению
       setTimeout(() => coinRevealResult(data.result), REVEAL_AT_MS);
 
-      // эффекты + фиксация стороны строго на приземлении
       setTimeout(() => {
         const type = data.you?.win ? "win" : "lose";
         glowOn(type);
@@ -320,8 +319,7 @@
         showToast(data.you?.win ? `WIN +${prof}` : `LOSE -${data.you?.amount}`);
       }, TOSS_MS);
 
-      setTimeout(() => refreshFeed(), TOSS_MS + 60);
-
+      setTimeout(() => refreshFeed(), TOSS_MS + 80);
     } catch (e) {
       showToast("Ошибка: " + e.message);
       debug("ERR=" + e.message);
@@ -366,7 +364,7 @@
     setAmount(50);
     setCoinFaces("❔", "❔");
     refreshFeed();
-    debug("APP LOADED ✅");
+    debug("APP LOADED ✅ | initData=" + (tg?.initData ? "yes" : "no"));
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind);

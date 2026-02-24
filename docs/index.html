@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>CoinFlip Ultra</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
   <style>
     :root{
       --bg: var(--tg-theme-bg-color, #0b0f14);
@@ -60,7 +61,7 @@
     .arenaCard{ position:relative; overflow:hidden; }
     .arena{
       position:relative;
-      height: 210px;
+      height: 220px;
       display:flex;
       align-items:flex-end;
       justify-content:center;
@@ -75,7 +76,6 @@
       border-radius: 999px;
       background: radial-gradient(circle at 50% 50%, rgba(46,166,255,.18), rgba(124,92,255,.10), transparent 70%);
       opacity:.9;
-      filter: blur(.2px);
       transform: scale(1);
       z-index: 1;
       pointer-events:none;
@@ -114,7 +114,6 @@
         transparent 74%);
     }
 
-    /* particles over everything */
     .particles{
       position:absolute;
       left: 50%;
@@ -170,7 +169,6 @@
     }
     .coin-back{ transform: rotateY(180deg); }
 
-    /* toss animation */
     .coin3d.toss{
       animation: toss 1.45s cubic-bezier(.16,.84,.21,1);
     }
@@ -312,28 +310,12 @@
       pointer-events:none;
     }
     #debug{margin-top:10px;color:var(--hint);font-size:12px}
-    /* arena shake */
-.arenaShake { animation: arenaShake .22s ease-out; }
-@keyframes arenaShake{
-  0%{ transform: translateX(0) }
-  25%{ transform: translateX(-3px) }
-  55%{ transform: translateX(3px) }
-  100%{ transform: translateX(0) }
-}
 
-/* slo-mo (slightly slows coin at the end) */
-.coin3d.slow { animation-timing-function: cubic-bezier(.2,.85,.2,1.2); }
-
-/* highlight YOU row */
-.rowp.youRow{
-  border-color: rgba(46,166,255,.22);
-  background: rgba(46,166,255,.10);
-}
-.right .profit{ font-size:12px; margin-top:2px; font-weight:950; }
-.right .profit.win{ color: var(--good); }
-.right .profit.lose{ color: var(--bad); }
+    /* critical: keep buttons clickable */
+    button, input { -webkit-user-select: none; user-select: none; }
   </style>
 </head>
+
 <body>
   <div class="wrap">
     <div class="top">
@@ -404,23 +386,23 @@
 
       <div style="margin-top:12px">
         <div class="seg">
-          <button id="btnOrel" class="active">🦅 Орёл</button>
-          <button id="btnReshka">🪙 Решка</button>
+          <button id="btnOrel" class="active" type="button">🦅 Орёл</button>
+          <button id="btnReshka" type="button">🪙 Решка</button>
         </div>
 
         <div class="grid">
-          <button class="chip" data-amt="10">10</button>
-          <button class="chip" data-amt="50">50</button>
-          <button class="chip" data-amt="100">100</button>
-          <button class="chip" data-amt="250">250</button>
+          <button class="chip" data-amt="10" type="button">10</button>
+          <button class="chip" data-amt="50" type="button">50</button>
+          <button class="chip" data-amt="100" type="button">100</button>
+          <button class="chip" data-amt="250" type="button">250</button>
         </div>
 
         <input id="amount" class="input" type="number" min="1" value="50" inputmode="numeric" />
 
-        <button id="play" class="cta">Сделать ставку</button>
-        <button id="balance" class="ghost">Показать баланс</button>
+        <button id="play" class="cta" type="button">Сделать ставку</button>
+        <button id="balance" class="ghost" type="button">Показать баланс</button>
 
-        <div class="hint">Если на Desktop не обновилось — открой миниапп заново (закрой/открой чат) или очисти кэш Telegram Desktop.</div>
+        <div class="hint">Если “криво” после перезапуска — это почти всегда кэш Telegram Desktop. Закрой Telegram полностью и открой заново.</div>
         <div id="debug"></div>
       </div>
     </div>
@@ -428,13 +410,13 @@
     <div class="card">
       <b>📜 Лента раундов</b>
       <div id="feed"></div>
-      <button id="refreshFeed" class="ghost">↻ Обновить</button>
+      <button id="refreshFeed" class="ghost" type="button">↻ Обновить</button>
     </div>
   </div>
 
   <div id="toast" class="toast"></div>
 
-  <!-- поменял v чтобы 100% убить кэш -->
-  <script src="./app.js?v=20260224_ultra_fix2"></script>
+  <!-- супер важное: каждый раз меняй только число если надо. Я ставлю timestamp -->
+  <script src="./app.js?v=20260224_fix_final_1"></script>
 </body>
 </html>
