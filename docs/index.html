@@ -312,6 +312,26 @@
       pointer-events:none;
     }
     #debug{margin-top:10px;color:var(--hint);font-size:12px}
+    /* arena shake */
+.arenaShake { animation: arenaShake .22s ease-out; }
+@keyframes arenaShake{
+  0%{ transform: translateX(0) }
+  25%{ transform: translateX(-3px) }
+  55%{ transform: translateX(3px) }
+  100%{ transform: translateX(0) }
+}
+
+/* slo-mo (slightly slows coin at the end) */
+.coin3d.slow { animation-timing-function: cubic-bezier(.2,.85,.2,1.2); }
+
+/* highlight YOU row */
+.rowp.youRow{
+  border-color: rgba(46,166,255,.22);
+  background: rgba(46,166,255,.10);
+}
+.right .profit{ font-size:12px; margin-top:2px; font-weight:950; }
+.right .profit.win{ color: var(--good); }
+.right .profit.lose{ color: var(--bad); }
   </style>
 </head>
 <body>

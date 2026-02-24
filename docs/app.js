@@ -92,6 +92,24 @@
   }
 
   function particlesBurst(type) {
+    function arenaShake() {
+  const card = document.querySelector(".arenaCard");
+  if (!card) return;
+  card.classList.remove("arenaShake");
+  void card.offsetWidth;
+  card.classList.add("arenaShake");
+}
+
+function coinSlowMoOn() {
+  const el = $("coin3d");
+  if (!el) return;
+  el.classList.add("slow");
+}
+function coinSlowMoOff() {
+  const el = $("coin3d");
+  if (!el) return;
+  el.classList.remove("slow");
+}
     const box = $("particles");
     if (!box) return;
     box.innerHTML = "";
@@ -148,6 +166,7 @@
 
     // запускаем toss
     el.classList.add("toss");
+    coinSlowMoOff();
   }
 
   function coinRevealResult(result) {
@@ -253,6 +272,18 @@
       const right = document.createElement("div");
       right.className = "right";
       right.innerHTML = `${p.win ? "✅" : "❌"}<small>${p.win ? "WIN" : "LOSE"}</small>`;
+      const prof = p.win ? "+" : "-";
+const amt = p.win ? "" : String(p.amount);
+right.innerHTML = `${p.win ? "✅" : "❌"}<small>${p.win ? "WIN" : "LOSE"}</small>`;
+
+// Если это YOU — покажем profit/lose понятнее (у NPC не всегда есть payout)
+if (!p.isNpc) {
+  const profit = document.createElement("div");
+  profit.className = "profit " + (p.win ? "win" : "lose");
+  profit.textContent = p.win ? "плюс" : `минус ${amt}`;
+  right.appendChild(profit);
+  row.classList.add("youRow");
+}
 
       row.appendChild(left);
       row.appendChild(right);
@@ -311,12 +342,18 @@
         glowOn(type);
         particlesBurst(type);
         coinLandApplyFinal();
+        // slo-mo + shake за 200мс до приземления
+setTimeout(() => {
+  coinSlowMoOn();
+  arenaShake();
+}, Math.max(0, TOSS_MS - 220));
         tg?.HapticFeedback?.notificationOccurred?.(data.you?.win ? "success" : "error");
       }, TOSS_MS);
 
       setTimeout(() => {
         renderRound(data);
         const prof = (data.you?.payout || 0) - (data.you?.amount || 0);
+        coinSlowMoOff();
         showToast(data.you?.win ? `WIN +${prof}` : `LOSE -${data.you?.amount}`);
       }, TOSS_MS);
 
