@@ -5,7 +5,7 @@
   const $ = (id) => document.getElementById(id);
   const state = { side: "орел", amount: 50, busy: false };
 
-  const TOSS_MS = 1450;          // длительность toss анимации (совпадает с CSS)
+  const TOSS_MS = 1450;          // длительность toss анимации (CSS)
   const REVEAL_AT_MS = 1200;     // когда раскрывать результат (чуть до приземления)
 
   function debug(t) {
@@ -115,6 +115,7 @@
     setTimeout(() => { box.innerHTML = ""; }, 800);
   }
 
+  // ===== МОНЕТА =====
   function setCoinFaces(front, back) {
     const cf = $("coinFront");
     const cb = $("coinBack");
@@ -122,41 +123,50 @@
     if (cb) cb.textContent = back;
   }
 
+  function coinHardResetForNextToss() {
+    const el = $("coin3d");
+    if (!el) return;
+
+    // КЛЮЧЕВОЕ: убираем финальный inline-transform от прошлого раунда
+    el.style.transform = "";
+    el.dataset.final = "";
+
+    // скрываем результат на старте
+    setCoinFaces("❔", "❔");
+
+    // сброс анимации
+    el.classList.remove("toss");
+    void el.offsetWidth;
+  }
+
   function coinTossStart() {
     const el = $("coin3d");
     if (!el) return;
 
-    // пока летит — скрываем результат
-    setCoinFaces("❔", "❔");
     glowOff();
+    coinHardResetForNextToss();
 
-    el.classList.remove("toss");
-    void el.offsetWidth;
+    // запускаем toss
     el.classList.add("toss");
   }
 
   function coinRevealResult(result) {
-    // раскрываем именно в момент "приземления"
-    // фронт = орел, бэк = решка
+    // именно в конце полёта раскрываем, какие стороны у монеты
     setCoinFaces("🦅", "🪙");
-
     const el = $("coin3d");
     if (!el) return;
-
-    // показываем нужную сторону (0deg = front, 180deg = back)
-    // ВАЖНО: не трогаем transform пока идет animation,
-    // поэтому делаем это после завершения (ниже в coinLand)
     el.dataset.final = (result === "орел") ? "0" : "180";
   }
 
   function coinLandApplyFinal() {
     const el = $("coin3d");
     if (!el) return;
-
     const deg = el.dataset.final || "0";
-    // убрать класс анимации и выставить финальную позицию
+
+    // заканчиваем анимацию и фиксируем сторону
     el.classList.remove("toss");
     el.style.transform = `rotateY(${deg}deg)`;
+
     floorPulse();
   }
 
@@ -290,13 +300,12 @@
     try {
       coinTossStart();
 
-      // параллельно: пока крутится — делаем запрос
       const data = await callApi("bet", { side: state.side, amount: state.amount });
 
-      // 1) раскрываем результат НЕ сразу, а ближе к приземлению
+      // раскрываем результат ближе к приземлению
       setTimeout(() => coinRevealResult(data.result), REVEAL_AT_MS);
 
-      // 2) эффекты делаем В МОМЕНТ ПРИЗЕМЛЕНИЯ
+      // эффекты + фиксация стороны строго на приземлении
       setTimeout(() => {
         const type = data.you?.win ? "win" : "lose";
         glowOn(type);
@@ -305,15 +314,13 @@
         tg?.HapticFeedback?.notificationOccurred?.(data.you?.win ? "success" : "error");
       }, TOSS_MS);
 
-      // 3) UI результата можно показать сразу (или тоже на приземлении)
       setTimeout(() => {
         renderRound(data);
         const prof = (data.you?.payout || 0) - (data.you?.amount || 0);
         showToast(data.you?.win ? `WIN +${prof}` : `LOSE -${data.you?.amount}`);
       }, TOSS_MS);
 
-      // обновим ленту после приземления
-      setTimeout(() => refreshFeed(), TOSS_MS + 50);
+      setTimeout(() => refreshFeed(), TOSS_MS + 60);
 
     } catch (e) {
       showToast("Ошибка: " + e.message);
@@ -321,7 +328,6 @@
       glowOn("lose");
       particlesBurst("lose");
       tg?.HapticFeedback?.notificationOccurred?.("error");
-      // если ошибка — монету в нейтрал
       setCoinFaces("❔", "❔");
     } finally {
       setTimeout(() => {
@@ -332,8 +338,6 @@
   }
 
   function onAnyTap(handler) {
-    // Telegram Desktop иногда капризничает с pointer*,
-    // поэтому дублируем click.
     document.addEventListener("pointerdown", handler, { capture: true });
     document.addEventListener("click", handler, { capture: true });
   }
